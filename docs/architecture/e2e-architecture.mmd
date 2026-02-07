@@ -8,23 +8,23 @@ flowchart LR
 
   %% On-prem lab (Docker Compose)
   subgraph LAB["Telemetry Kitchen - Docker Compose"]
-    GP[Gateway.Poller .NET 10\n- polls external APIs\n- normalizes to SensorEvent\n- publishes to RabbitMQ\n- exposes metrics]
-    MQ[(RabbitMQ)\nDurability gate]
-    IC[Ingest.Consumer .NET 10\n- consumes queues\n- idempotency\n- writes Postgres\n- exposes metrics]
-    DB[(PostgreSQL vanilla\nSingle instance\nNaive baseline schema\none big table first)]
+    GP[Gateway.Poller .NET 10<br/>- polls external APIs<br/>- normalizes to SensorEvent<br/>- publishes to RabbitMQ<br/>- exposes metrics]
+    MQ[(RabbitMQ<br/>Durability gate)]
+    IC[Ingest.Consumer .NET 10<br/>- consumes queues<br/>- idempotency<br/>- writes Postgres<br/>- exposes metrics]
+    DB[(PostgreSQL vanilla<br/>Single instance<br/>Naive baseline schema<br/>one big table first)]
 
-    PROM[(Prometheus)\nScrapes metrics]
-    GRAF[Grafana\nOps dashboards and alerts]
-    META[Metabase\nAnalytics and BI dashboards]
-    MVC[Web.Mvc .NET 10 MVC\nRead-only UI Phase 1\nSensors status history]
+    PROM[(Prometheus<br/>Scrapes metrics)]
+    GRAF[Grafana<br/>Ops dashboards and alerts]
+    META[Metabase<br/>Analytics and BI dashboards]
+    MVC[Web.Mvc .NET 10 MVC<br/>Read-only UI Phase 1<br/>Sensors status history]
 
     %% Phase 2 (optional)
-    AZ[(Azurite\nAzure Blob-compatible\nLocal object storage\nPhase 2 for camera blobs)]
+    AZ[(Azurite<br/>Azure Blob-compatible<br/>Local object storage<br/>Phase 2 for camera blobs)]
 
     %% Exporters (optional early, likely Phase 1.1)
     PGX[postgres_exporter]
     RMQX[rabbitmq_exporter]
-    CAD[cAdvisor node-exporter\nCPU RAM Disk Net]
+    CAD[cAdvisor node-exporter<br/>CPU RAM Disk Net]
   end
 
   %% External -> Gateway
