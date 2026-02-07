@@ -24,7 +24,7 @@
   "panels": [
     {
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "postgres"
       },
       "fieldConfig": {
@@ -104,7 +104,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "postgres"
           },
           "format": "time_series",
@@ -133,7 +133,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "postgres"
       },
       "fieldConfig": {
@@ -174,7 +174,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "postgres"
           },
           "format": "table",
@@ -203,7 +203,7 @@
     },
     {
       "datasource": {
-        "type": "postgres",
+        "type": "grafana-postgresql-datasource",
         "uid": "postgres"
       },
       "fieldConfig": {
@@ -254,7 +254,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "postgres",
+            "type": "grafana-postgresql-datasource",
             "uid": "postgres"
           },
           "format": "table",
@@ -335,3 +335,4 @@
   "version": 0,
   "weekStart": ""
 }
+
