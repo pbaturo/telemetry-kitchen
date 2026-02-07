@@ -1,0 +1,123 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "telemetry-ops",
+    "title": "Telemetry Kitchen - Operations Dashboard",
+    "tags": ["telemetry", "operations"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "type": "graph",
+        "title": "Gateway - Sensor Polling Rate",
+        "targets": [
+          {
+            "expr": "rate(telemetry_gateway_polls_total[5m])",
+            "legendFormat": "{{sensor_type}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Polls/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "type": "graph",
+        "title": "Consumer - Message Processing Rate",
+        "targets": [
+          {
+            "expr": "rate(telemetry_consumer_messages_processed_total[5m])",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Messages/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "type": "graph",
+        "title": "Database - Ingestion Latency",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(telemetry_consumer_db_write_duration_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(telemetry_consumer_db_write_duration_seconds_bucket[5m]))",
+            "legendFormat": "p50",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "s", "label": "Latency" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "type": "graph",
+        "title": "RabbitMQ - Queue Depth",
+        "targets": [
+          {
+            "expr": "telemetry_gateway_queue_depth",
+            "legendFormat": "{{queue}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          { "format": "short", "label": "Messages" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 5,
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 16 },
+        "type": "stat",
+        "title": "Total Sensor Readings (24h)",
+        "targets": [
+          {
+            "expr": "sum(increase(telemetry_consumer_messages_processed_total[24h]))",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
+        "type": "stat",
+        "title": "Gateway Error Rate",
+        "targets": [
+          {
+            "expr": "rate(telemetry_gateway_errors_total[5m])",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+        "type": "stat",
+        "title": "Consumer Error Rate",
+        "targets": [
+          {
+            "expr": "rate(telemetry_consumer_errors_total[5m])",
+            "refId": "A"
+          }
+        ]
+      }
+    ]
+  }
+}
