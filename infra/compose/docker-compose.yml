@@ -31,5 +31,95 @@ services:
       postgres:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tk-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - tk_promdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tk-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - tk_grafanadata:/var/lib/grafana
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: tk-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: tk
+      RABBITMQ_DEFAULT_PASS: tk
+      RABBITMQ_LOAD_DEFINITIONS: "yes"
+      RABBITMQ_DEFINITIONS_FILE: /etc/rabbitmq/definitions.json
+    ports:
+      - "5672:5672"     # AMQP port
+      - "15672:15672"   # Management UI
+    volumes:
+      - tk_rabbitmq_data:/var/lib/rabbitmq
+      - ../rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  gateway-poller:
+    build:
+      context: ../../src
+      dockerfile: Gateway.Poller/Dockerfile
+    container_name: tk-gateway-poller
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Information
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ingest-consumer:
+    build:
+      context: ../../src
+      dockerfile: Ingest.Consumer/Dockerfile
+    container_name: tk-ingest-consumer
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      Logging__LogLevel__Default: Information
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   tk_pgdata:
+  tk_promdata:
+  tk_grafanadata:
+  tk_rabbitmq_data:

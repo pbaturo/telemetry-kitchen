@@ -1,0 +1,36 @@
+{
+  "rabbit_version": "3.13.0",
+  "rabbitmq_version": "3.13.0",
+  "exchanges": [
+    {
+      "name": "sensor-events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "ingest-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-mode": "lazy"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "sensor-events",
+      "destination": "ingest-events",
+      "destination_type": "queue",
+      "vhost": "/",
+      "routing_key": "#",
+      "arguments": {}
+    }
+  ]
+}
