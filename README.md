@@ -110,10 +110,13 @@ docker ps
 3. Watch metrics populate in real-time
 
 **Metabase Analytics:**
-1. Login to http://localhost:3001
-2. Click **+ New** → **SQL query**
-3. Explore sensor data with custom SQL queries
-4. See [METABASE-SETUP.md](docs/METABASE-SETUP.md) for query examples and dashboard setup
+1. Login to http://localhost:3001 (admin@example.com / admin)
+2. **For Analysts:** Follow [METABASE-REPORTS-SETUP.md](docs/METABASE-REPORTS-SETUP.md) to create BI dashboards
+   - Average Temperature by Source (time-series)
+   - Sensors by Source Comparison (daily statistics)
+   - Data Quality Dashboard (status distribution)
+   - Sensor Inactivity Detection
+3. **For Developers:** See [METABASE-SETUP.md](docs/METABASE-SETUP.md) for connection details and custom SQL queries
 
 **Web MVC Dashboard:**
 1. Login to http://localhost:3000
@@ -205,6 +208,11 @@ docker logs -f tk-ingest-consumer
   - Dashboard creation
   - Custom SQL query library
   - Integration examples
+- **[Metabase Reports Setup](docs/METABASE-REPORTS-SETUP.md)** — Analyst persona guide
+  - Pre-built dashboards for operators & analysts
+  - Step-by-step creation of temperature, quality, and inactivity reports
+  - SQL query reference library
+  - Real-time monitoring for data quality
   - Troubleshooting
 
 ### 📙 Architecture
