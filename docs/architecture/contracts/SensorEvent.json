@@ -1,0 +1,62 @@
+{
+  "contractName": "SensorEvent",
+  "version": "0.1",
+  "notes": [
+    "Canonical event envelope for all ingested sensor-like data.",
+    "Delivery semantics: at-least-once. Consumers must be idempotent using eventId.",
+    "observedAt = time at source; receivedAt = time observed by platform.",
+    "Late arrivals are allowed; do not assume ordering."
+  ],
+  "fields": {
+    "eventId": "string (required) - globally unique idempotency key",
+    "sensorId": "string (required) - stable identifier of sensor/station",
+    "sourceType": "string (required) - e.g. public-opensensemap | public-usgs | public-sensorcommunity | synthetic | hardware",
+    "payloadType": "string (required) - json | xml | imageRef",
+    "payloadSizeBytes": "number (required) - size of original payload in bytes if known, else estimate",
+    "observedAt": "string (required) - ISO 8601 timestamp at source",
+    "receivedAt": "string (required) - ISO 8601 timestamp when gateway received/created the event",
+    "location": {
+      "lat": "number (optional)",
+      "lon": "number (optional)",
+      "label": "string (optional) - human label (city/station/etc.)"
+    },
+    "status": {
+      "level": "string (required) - INFO | WARN | ERROR",
+      "message": "string (optional, max 250 chars) - short diagnostic"
+    },
+    "measurements": [
+      {
+        "name": "string (required) - parameter key (e.g., temperatureC, humidityPct, waterLevelM)",
+        "value": "number|string|boolean|null (required) - normalized value; may be null for missing/NaN",
+        "unit": "string (optional) - e.g., C, %, m, mg/L",
+        "quality": "string (optional) - OK | SUSPECT | BAD",
+        "raw": "string (optional) - raw text for debugging (e.g., original XML fragment)"
+      }
+    ],
+    "blobRef": {
+      "uri": "string (optional) - object storage URI (Azurite/Azure Blob style)",
+      "contentType": "string (optional) - image/jpeg, image/png",
+      "checksumSha256": "string (optional)",
+      "byteLength": "number (optional)"
+    },
+    "correlation": {
+      "traceId": "string (optional)",
+      "sourceRequestId": "string (optional) - upstream request id if present"
+    }
+  },
+  "example": {
+    "eventId": "01JY0F1N9V5H5Y6QZB9A6Q2C2G",
+    "sensorId": "box:5d2e.../sensor:abc123",
+    "sourceType": "public-opensensemap",
+    "payloadType": "json",
+    "payloadSizeBytes": 812,
+    "observedAt": "2026-02-07T10:15:30Z",
+    "receivedAt": "2026-02-07T10:15:31Z",
+    "location": { "lat": 52.231, "lon": 21.006, "label": "Warsaw" },
+    "status": { "level": "INFO", "message": "ok" },
+    "measurements": [
+      { "name": "temperatureC", "value": 20.3, "unit": "C", "quality": "OK" }
+    ],
+    "correlation": { "traceId": "0af7651916cd43dd8448eb211c80319c" }
+  }
+}
