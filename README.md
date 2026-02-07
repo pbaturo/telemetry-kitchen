@@ -39,3 +39,14 @@ Run infra:
 ```bash
 cp infra/compose/.env.example infra/compose/.env
 docker compose -f infra/compose/docker-compose.yml up -d
+```
+
+## Logging (Loki)
+
+Grafana provides logs via Loki. Use Explore and query by labels, for example:
+
+```text
+{application=~"gateway-poller|ingest-consumer"}
+```
+
+
