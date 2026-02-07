@@ -36,8 +36,8 @@ public class PostgresWriter : IPostgresWriter
             // UPSERT sensors table
             await using (var cmd = new NpgsqlCommand(SqlStatements.UpsertSensor, conn, transaction))
             {
-                cmd.Parameters.AddWithValue("sensor_id", sensorEvent.SensorId);
-                cmd.Parameters.AddWithValue("source_type", sensorEvent.SourceType);
+                cmd.Parameters.AddWithValue("sensor_id", (object?)sensorEvent.SensorId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("source_type", (object?)sensorEvent.SourceType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("display_name", (object?)sensorEvent.SensorId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("lat", DBNull.Value);
                 cmd.Parameters.AddWithValue("lon", DBNull.Value);
@@ -47,10 +47,10 @@ public class PostgresWriter : IPostgresWriter
             // INSERT sensor_events (ignore duplicates)
             await using (var cmd = new NpgsqlCommand(SqlStatements.InsertSensorEvent, conn, transaction))
             {
-                cmd.Parameters.AddWithValue("event_id", sensorEvent.EventId);
-                cmd.Parameters.AddWithValue("sensor_id", sensorEvent.SensorId);
-                cmd.Parameters.AddWithValue("source_type", sensorEvent.SourceType);
-                cmd.Parameters.AddWithValue("payload_type", sensorEvent.PayloadType);
+                cmd.Parameters.AddWithValue("event_id", (object?)sensorEvent.EventId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("sensor_id", (object?)sensorEvent.SensorId ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("source_type", (object?)sensorEvent.SourceType ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("payload_type", (object?)sensorEvent.PayloadType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("payload_size_b", sensorEvent.PayloadSizeBytes);
                 cmd.Parameters.AddWithValue("observed_at", sensorEvent.ObservedAt);
                 cmd.Parameters.AddWithValue("received_at", sensorEvent.ReceivedAt);
