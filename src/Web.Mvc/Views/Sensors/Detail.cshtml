@@ -36,6 +36,68 @@
     <div class="col-lg-8">
         <div class="card mb-4">
             <div class="card-header bg-light">
+                <h5 class="mb-0">📊 Latest Measurements</h5>
+                @if (Model.LatestMeasurementTime.HasValue)
+                {
+                    <small class="text-muted">Last updated: @Model.LatestMeasurementTime.Value.ToString("g")</small>
+                }
+            </div>
+            <div class="card-body">
+                @if (Model.LatestMeasurements.Any())
+                {
+                    <div class="row g-3">
+                        @foreach (var measurement in Model.LatestMeasurements)
+                        {
+                            var emoji = measurement.Name.ToLower() switch
+                            {
+                                var n when n.Contains("temp") => "🌡️",
+                                var n when n.Contains("humidity") => "💧",
+                                var n when n.Contains("pressure") => "🔽",
+                                var n when n.Contains("pm2.5") || n.Contains("pm25") => "🫁",
+                                var n when n.Contains("pm10") => "💨",
+                                var n when n.Contains("pm1") => "🌫️",
+                                var n when n.Contains("co2") => "🏭",
+                                var n when n.Contains("voc") => "🧪",
+                                var n when n.Contains("wind") && n.Contains("speed") => "💨",
+                                var n when n.Contains("wind") && n.Contains("direction") => "🧭",
+                                var n when n.Contains("rain") || n.Contains("precipitation") => "🌧️",
+                                var n when n.Contains("solar") || n.Contains("radiation") => "☀️",
+                                var n when n.Contains("uv") => "☀️",
+                                var n when n.Contains("light") || n.Contains("lux") => "💡",
+                                var n when n.Contains("battery") || n.Contains("power") => "🔋",
+                                var n when n.Contains("groundwater") || n.Contains("water") && n.Contains("level") => "🌊",
+                                var n when n.Contains("noise") || n.Contains("sound") => "🔊",
+                                var n when n.Contains("altitude") || n.Contains("elevation") => "⛰️",
+                                _ => "📏"
+                            };
+
+                            <div class="col-md-4 col-sm-6">
+                                <div class="d-flex align-items-start">
+                                    <div class="me-2" style="font-size: 1.5rem;">@emoji</div>
+                                    <div>
+                                        <small class="text-muted d-block">@measurement.Name</small>
+                                        <strong class="d-block">
+                                            @measurement.Value
+                                            @if (!string.IsNullOrEmpty(measurement.Unit))
+                                            {
+                                                <span class="text-muted">@measurement.Unit</span>
+                                            }
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No measurements available yet</p>
+                }
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-light">
                 <h5 class="mb-0">Sensor Information</h5>
             </div>
             <div class="card-body">

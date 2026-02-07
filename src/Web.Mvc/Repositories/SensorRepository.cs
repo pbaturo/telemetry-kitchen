@@ -20,6 +20,42 @@ public class SensorRepository : ISensorRepository
         _context = context;
     }
 
+    /// <summary>
+    /// Helper method to parse measurement item from JSON, handling both "Name"/"name" and "Value"/"value" property names
+    /// </summary>
+    private static MeasurementItem? ParseMeasurement(System.Text.Json.JsonElement item)
+    {
+        string? name = null;
+        string? value = null;
+        string? unit = null;
+
+        // Try both PascalCase and lowercase property names
+        if (item.TryGetProperty("Name", out var nameProp) || item.TryGetProperty("name", out nameProp))
+        {
+            name = nameProp.GetString();
+        }
+
+        if (item.TryGetProperty("Value", out var valueProp) || item.TryGetProperty("value", out valueProp))
+        {
+            value = valueProp.ToString();
+        }
+
+        if (item.TryGetProperty("Unit", out var unitProp) || item.TryGetProperty("unit", out unitProp))
+        {
+            unit = unitProp.GetString();
+        }
+
+        if (string.IsNullOrEmpty(name))
+            return null;
+
+        return new MeasurementItem
+        {
+            Name = name,
+            Value = value ?? "",
+            Unit = unit ?? ""
+        };
+    }
+
     public async Task<List<SensorSummary>> GetAllSensorsAsync()
     {
         return await _context.Sensors
@@ -54,6 +90,22 @@ public class SensorRepository : ISensorRepository
         var totalEventCount = await _context.SensorEvents
             .CountAsync(e => e.SensorId == sensorId);
 
+        // Get latest measurements with units
+        var latestEvent = recentEvents.FirstOrDefault();
+        var latestMeasurements = new List<MeasurementItem>();
+        DateTime? latestMeasurementTime = null;
+
+        if (latestEvent?.Measurements?.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            latestMeasurements = latestEvent.Measurements.RootElement
+                .EnumerateArray()
+                .Select(ParseMeasurement)
+                .Where(m => m != null)
+                .Cast<MeasurementItem>()
+                .ToList();
+            latestMeasurementTime = latestEvent.ObservedAt;
+        }
+
         return new SensorDetail
         {
             SensorId = sensor.SensorId,
@@ -63,6 +115,8 @@ public class SensorRepository : ISensorRepository
             Lon = sensor.Lon,
             CreatedAt = sensor.CreatedAt,
             UpdatedAt = sensor.UpdatedAt,
+            LatestMeasurements = latestMeasurements,
+            LatestMeasurementTime = latestMeasurementTime,
             RecentEvents = recentEvents
                 .Select(e => new EventSummary
                 {
@@ -72,11 +126,24 @@ public class SensorRepository : ISensorRepository
                     StatusMessage = e.StatusMessage,
                     Measurements = e.Measurements?.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array
                         ? e.Measurements.RootElement.EnumerateArray()
-                            .Where(item => item.TryGetProperty("name", out _))
-                            .Select(item => new KeyValuePair<string, object>(
-                                item.GetProperty("name").GetString() ?? "",
-                                item.TryGetProperty("value", out var val) ? val.ToString() : ""
-                            ))
+                            .Select(item =>
+                            {
+                                string? name = null;
+                                if (item.TryGetProperty("Name", out var nameProp) || item.TryGetProperty("name", out nameProp))
+                                {
+                                    name = nameProp.GetString();
+                                }
+
+                                string? value = null;
+                                if (item.TryGetProperty("Value", out var valueProp) || item.TryGetProperty("value", out valueProp))
+                                {
+                                    value = valueProp.ToString();
+                                }
+
+                                return (name, value);
+                            })
+                            .Where(m => !string.IsNullOrEmpty(m.name))
+                            .Select(m => new KeyValuePair<string, object>(m.name ?? "", m.value ?? ""))
                             .ToList()
                         : []
                 })
@@ -112,13 +179,9 @@ public class SensorRepository : ISensorRepository
             {
                 sensor.LastMeasurements = lastEvent.Measurements.RootElement
                     .EnumerateArray()
-                    .Where(item => item.TryGetProperty("name", out _))
-                    .Select(item => new MeasurementItem
-                    {
-                        Name = item.GetProperty("name").GetString() ?? "",
-                        Value = item.TryGetProperty("value", out var val) ? val.ToString() : "",
-                        Unit = item.TryGetProperty("unit", out var unit) ? unit.ToString() : ""
-                    })
+                    .Select(ParseMeasurement)
+                    .Where(m => m != null)
+                    .Cast<MeasurementItem>()
                     .ToList();
             }
 
@@ -155,6 +218,8 @@ public class SensorDetail
     public DateTime UpdatedAt { get; set; }
     public int TotalEventCount { get; set; }
     public List<EventSummary> RecentEvents { get; set; } = [];
+    public List<MeasurementItem> LatestMeasurements { get; set; } = [];
+    public DateTime? LatestMeasurementTime { get; set; }
 }
 
 public class EventSummary

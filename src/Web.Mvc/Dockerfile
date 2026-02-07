@@ -18,6 +18,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=publish /app/publish .
+COPY Web.Mvc/Views ./Views
 
 EXPOSE 5000
 
