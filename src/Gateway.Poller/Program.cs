@@ -8,10 +8,30 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Prometheus;
+using Serilog;
 using Shared.Contracts;
 using Gateway.Poller.Publishing;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((context, configuration) =>
+{
+    try
+    {
+        configuration.ReadFrom.Configuration(context.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId();
+        
+        Console.WriteLine("[Serilog] Configured with Console and Loki sinks");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Serilog] Configuration error: {ex.Message}");
+        throw;
+    }
+});
 
 // Add services
 builder.Services.AddHttpClient();

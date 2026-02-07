@@ -46,6 +46,17 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:latest
+    container_name: tk-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - tk_loki_data:/loki
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:latest
     container_name: tk-grafana
@@ -60,6 +71,7 @@ services:
       - ../grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
+      - loki
     restart: unless-stopped
 
   rabbitmq:
@@ -123,3 +135,4 @@ volumes:
   tk_promdata:
   tk_grafanadata:
   tk_rabbitmq_data:
+  tk_loki_data:

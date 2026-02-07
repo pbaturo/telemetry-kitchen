@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Prometheus;
+using Serilog;
 using Shared.Contracts;
 using Ingest.Consumer.Consuming;
 using Ingest.Consumer.Idempotency;
@@ -17,6 +18,23 @@ var host = Host.CreateDefaultBuilder(args)
         config.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")}.json", true, true);
         config.AddEnvironmentVariables();
     })
+    .UseSerilog((context, configuration) =>
+    {
+        try
+        {
+            configuration.ReadFrom.Configuration(context.Configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithMachineName()
+                .Enrich.WithThreadId();
+            
+            Console.WriteLine("[Serilog] Configured with Console and Loki sinks");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Serilog] Configuration error: {ex.Message}");
+            throw;
+        }
+    })
     .ConfigureServices((context, services) =>
     {
         // Persistence
@@ -28,11 +46,6 @@ var host = Host.CreateDefaultBuilder(args)
 
         // Hosted services
         services.AddHostedService<ConsumerHostedService>();
-    })
-    .ConfigureLogging(logging =>
-    {
-        logging.AddConsole();
-        logging.AddDebug();
     })
     .Build();
 
