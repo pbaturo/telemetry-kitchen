@@ -9,6 +9,7 @@ public class SensorEvent
     public string SourceType { get; set; } = string.Empty;
     public string PayloadType { get; set; } = string.Empty;
     public int PayloadSizeB { get; set; }
+    public JsonDocument? PayloadJson { get; set; }
 
     public DateTime ObservedAt { get; set; }
     public DateTime ReceivedAt { get; set; }

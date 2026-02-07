@@ -7,6 +7,7 @@ public record SensorEvent
     public required string SourceType { get; init; }
     public required string PayloadType { get; init; }
     public required int PayloadSizeBytes { get; init; }
+    public string? PayloadJson { get; init; }
     public required DateTime ObservedAt { get; init; }
     public required DateTime ReceivedAt { get; init; }
     public required StatusLevel StatusLevel { get; init; }

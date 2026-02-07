@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS sensor_events (
   source_type      TEXT NOT NULL,
   payload_type     TEXT NOT NULL,             -- json | xml | imageRef
   payload_size_b   INTEGER NOT NULL DEFAULT 0,
+  payload_json     JSONB NULL,                -- raw payload (full response)
 
   observed_at      TIMESTAMPTZ NOT NULL,      -- time at source
   received_at      TIMESTAMPTZ NOT NULL,      -- time at gateway

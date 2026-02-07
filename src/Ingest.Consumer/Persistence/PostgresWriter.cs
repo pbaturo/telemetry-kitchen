@@ -52,6 +52,7 @@ public class PostgresWriter : IPostgresWriter
                 cmd.Parameters.AddWithValue("source_type", (object?)sensorEvent.SourceType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("payload_type", (object?)sensorEvent.PayloadType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("payload_size_b", sensorEvent.PayloadSizeBytes);
+                cmd.Parameters.AddWithValue("payload_json", (object?)sensorEvent.PayloadJson ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("observed_at", sensorEvent.ObservedAt);
                 cmd.Parameters.AddWithValue("received_at", sensorEvent.ReceivedAt);
                 cmd.Parameters.AddWithValue("status_level", sensorEvent.StatusLevel.ToString());

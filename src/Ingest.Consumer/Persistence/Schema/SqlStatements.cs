@@ -15,10 +15,10 @@ public static class SqlStatements
 
     public const string InsertSensorEvent = @"
         INSERT INTO sensor_events 
-        (event_id, sensor_id, source_type, payload_type, payload_size_b, 
+        (event_id, sensor_id, source_type, payload_type, payload_size_b, payload_json,
          observed_at, received_at, status_level, status_message, measurements)
         VALUES 
-        (@event_id, @sensor_id, @source_type, @payload_type, @payload_size_b,
+        (@event_id, @sensor_id, @source_type, @payload_type, @payload_size_b, @payload_json::jsonb,
          @observed_at, @received_at, @status_level, @status_message, @measurements::jsonb)
         ON CONFLICT (event_id) DO NOTHING";
 

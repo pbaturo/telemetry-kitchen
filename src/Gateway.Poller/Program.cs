@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,9 +61,11 @@ public class StationConfig
     public required string SensorId { get; set; }
     public required string Name { get; set; }
     public required string Url { get; set; }
+    public string SourceType { get; set; } = "opensensemap";
     public int PollIntervalSeconds { get; set; } = 60;
     public double Lat { get; set; }
     public double Lon { get; set; }
+    public long? LocationId { get; set; }
 }
 
 // Background service for polling stations
@@ -133,6 +137,9 @@ public class PollerService : BackgroundService
         var sw = Stopwatch.StartNew();
         var httpClient = _httpClientFactory.CreateClient();
         httpClient.Timeout = TimeSpan.FromSeconds(30);
+        
+        // Set User-Agent for Sensor.Community API compatibility
+        httpClient.DefaultRequestHeaders.Add("User-Agent", "TelemetryKitchen/1.0 (+https://github.com/telemetry-kitchen)");
 
         HttpResponseMessage? response = null;
         string? responseBody = null;
@@ -141,6 +148,9 @@ public class PollerService : BackgroundService
         string statusMessage = "OK";
         List<Measurement> measurements = new();
         DateTime? observedAt = null;
+        var sourceType = string.IsNullOrWhiteSpace(station.SourceType)
+            ? "opensensemap"
+            : station.SourceType.Trim();
 
         try
         {
@@ -157,51 +167,18 @@ public class PollerService : BackgroundService
             var pollDurationMs = sw.ElapsedMilliseconds;
             _metrics.PollDuration.Observe(pollDurationMs);
 
-            // Parse OpenSenseMap response
+            // Parse response based on source type
             try
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var openSenseData = JsonSerializer.Deserialize<OpenSenseMapResponse>(responseBody, options);
-                if (openSenseData?.Sensors != null)
+                if (sourceType.Equals("sensor-community", StringComparison.OrdinalIgnoreCase) ||
+                    sourceType.Equals("sensorcommunity", StringComparison.OrdinalIgnoreCase) ||
+                    sourceType.Equals("sensor_community", StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach (var sensor in openSenseData.Sensors)
-                    {
-                        if (sensor.LastMeasurement?.Value != null)
-                        {
-                            measurements.Add(new Measurement
-                            {
-                                Name = sensor.Title ?? "unknown",
-                                Value = sensor.LastMeasurement.Value,
-                                Unit = sensor.Unit
-                            });
-
-                            // Use the most recent measurement timestamp as observedAt
-                            if (DateTime.TryParse(sensor.LastMeasurement.CreatedAt, out var measurementTime))
-                            {
-                                if (observedAt == null || measurementTime > observedAt)
-                                {
-                                    observedAt = measurementTime;
-                                }
-                            }
-                        }
-                    }
-
-                    if (measurements.Count == 0)
-                    {
-                        statusLevel = StatusLevel.WARN;
-                        statusMessage = "No measurements available";
-                        measurements.Add(new Measurement
-                        {
-                            Name = "raw",
-                            Value = responseBody.Length > 200 ? responseBody.Substring(0, 200) : responseBody,
-                            Unit = null
-                        });
-                    }
+                    ParseSensorCommunity(responseBody, station, measurements, ref observedAt, ref statusLevel, ref statusMessage);
                 }
                 else
                 {
-                    statusLevel = StatusLevel.WARN;
-                    statusMessage = "Invalid response structure";
+                    ParseOpenSenseMap(responseBody, measurements, ref observedAt, ref statusLevel, ref statusMessage);
                 }
             }
             catch (JsonException ex)
@@ -226,9 +203,10 @@ public class PollerService : BackgroundService
             {
                 EventId = eventId,
                 SensorId = station.SensorId,
-                SourceType = "public-environment",
+                SourceType = sourceType,
                 PayloadType = "json",
                 PayloadSizeBytes = payloadBytes,
+                PayloadJson = responseBody,
                 ObservedAt = effectiveObservedAt,
                 ReceivedAt = receivedAt,
                 StatusLevel = statusLevel,
@@ -279,6 +257,134 @@ public class PollerService : BackgroundService
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{sensorId}|{observedAt:O}|{payloadBytes}|{payload}"));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private static void ParseOpenSenseMap(
+        string responseBody,
+        List<Measurement> measurements,
+        ref DateTime? observedAt,
+        ref StatusLevel statusLevel,
+        ref string statusMessage)
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var openSenseData = JsonSerializer.Deserialize<OpenSenseMapResponse>(responseBody, options);
+        if (openSenseData?.Sensors != null)
+        {
+            foreach (var sensor in openSenseData.Sensors)
+            {
+                if (sensor.LastMeasurement?.Value != null)
+                {
+                    measurements.Add(new Measurement
+                    {
+                        Name = sensor.Title ?? "unknown",
+                        Value = sensor.LastMeasurement.Value,
+                        Unit = sensor.Unit
+                    });
+
+                    if (DateTime.TryParse(sensor.LastMeasurement.CreatedAt, out var measurementTime))
+                    {
+                        if (observedAt == null || measurementTime > observedAt)
+                        {
+                            observedAt = measurementTime;
+                        }
+                    }
+                }
+            }
+
+            if (measurements.Count == 0)
+            {
+                statusLevel = StatusLevel.WARN;
+                statusMessage = "No measurements available";
+                measurements.Add(new Measurement
+                {
+                    Name = "raw",
+                    Value = responseBody.Length > 200 ? responseBody.Substring(0, 200) : responseBody,
+                    Unit = null
+                });
+            }
+        }
+        else
+        {
+            statusLevel = StatusLevel.WARN;
+            statusMessage = "Invalid response structure";
+        }
+    }
+
+    private static void ParseSensorCommunity(
+        string responseBody,
+        StationConfig station,
+        List<Measurement> measurements,
+        ref DateTime? observedAt,
+        ref StatusLevel statusLevel,
+        ref string statusMessage)
+    {
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var readings = JsonSerializer.Deserialize<List<SensorCommunityReading>>(responseBody, options);
+        if (readings == null || readings.Count == 0)
+        {
+            statusLevel = StatusLevel.WARN;
+            statusMessage = "Empty Sensor.Community response";
+            return;
+        }
+
+        // Collect data from all readings in the bbox area (LocationId used for station identification, not filtering)
+        bool foundData = false;
+        foreach (var reading in readings)
+        {
+            var sensorType = NormalizeMeasurementName(reading.Sensor?.SensorType?.Name);
+            if (reading.Sensordatavalues == null || reading.Sensordatavalues.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var value in reading.Sensordatavalues)
+            {
+                if (string.IsNullOrWhiteSpace(value.ValueType))
+                {
+                    continue;
+                }
+
+                var valueName = NormalizeMeasurementName(value.ValueType);
+                var measurementName = string.IsNullOrWhiteSpace(sensorType)
+                    ? valueName
+                    : $"{sensorType}.{valueName}";
+
+                measurements.Add(new Measurement
+                {
+                    Name = measurementName,
+                    Value = value.Value?.ToString() ?? string.Empty,
+                    Unit = null
+                });
+                foundData = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(reading.Timestamp) &&
+                DateTime.TryParse(reading.Timestamp, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var measurementTime))
+            {
+                if (observedAt == null || measurementTime > observedAt)
+                {
+                    observedAt = measurementTime;
+                }
+            }
+        }
+
+        if (!foundData)
+        {
+            statusLevel = StatusLevel.WARN;
+            statusMessage = "No measurements available";
+        }
+    }
+
+    private static string NormalizeMeasurementName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "unknown";
+        }
+
+        return name.Trim().ToLowerInvariant().Replace(" ", "_");
     }
 }
 
@@ -339,4 +445,50 @@ public class LastMeasurementInfo
 {
     public string? Value { get; set; }
     public string? CreatedAt { get; set; }
+}
+
+// Sensor.Community API response models
+public class SensorCommunityReading
+{
+    public long Id { get; set; }
+    public SensorCommunityLocation? Location { get; set; }
+    public SensorCommunitySensor? Sensor { get; set; }
+    [JsonPropertyName("sensordatavalues")]
+    public List<SensorCommunityValue>? Sensordatavalues { get; set; }
+    public string? Timestamp { get; set; }
+}
+
+public class SensorCommunityLocation
+{
+    public long Id { get; set; }
+    public string? Latitude { get; set; }
+    public string? Longitude { get; set; }
+    public string? Country { get; set; }
+    public string? Altitude { get; set; }
+    [JsonPropertyName("exact_location")]
+    public int? ExactLocation { get; set; }
+    public int? Indoor { get; set; }
+}
+
+public class SensorCommunitySensor
+{
+    public string? Pin { get; set; }
+    public long? Id { get; set; }
+    [JsonPropertyName("sensor_type")]
+    public SensorCommunitySensorType? SensorType { get; set; }
+}
+
+public class SensorCommunitySensorType
+{
+    public long? Id { get; set; }
+    public string? Name { get; set; }
+    public string? Manufacturer { get; set; }
+}
+
+public class SensorCommunityValue
+{
+    [JsonPropertyName("value_type")]
+    public string? ValueType { get; set; }
+    public object? Value { get; set; }
+    public long? Id { get; set; }
 }
