@@ -126,11 +126,13 @@ public class SensorPollingService : BackgroundService
 
     private class OpenMeteoResponse
     {
+        [System.Text.Json.Serialization.JsonPropertyName("current")]
         public CurrentWeather? Current { get; set; }
     }
 
     private class CurrentWeather
     {
+        [System.Text.Json.Serialization.JsonPropertyName("temperature_2m")]
         public double Temperature2m { get; set; }
     }
 }

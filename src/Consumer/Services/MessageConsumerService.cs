@@ -10,7 +10,7 @@ namespace Consumer.Services;
 public class MessageConsumerService : BackgroundService
 {
     private readonly IConnection _connection;
-    private readonly IChannel _channel;
+    private readonly IModel _channel;
     private readonly IDatabaseWriter _databaseWriter;
     private readonly MetricsService _metricsService;
     private readonly ILogger<MessageConsumerService> _logger;
@@ -34,27 +34,27 @@ public class MessageConsumerService : BackgroundService
             Password = config.Value.Password
         };
 
-        _connection = factory.CreateConnectionAsync().GetAwaiter().GetResult();
-        _channel = _connection.CreateChannelAsync().GetAwaiter().GetResult();
+        _connection = factory.CreateConnection();
+        _channel = _connection.CreateModel();
 
         // Ensure queue exists
-        _channel.QueueDeclareAsync(
+        _channel.QueueDeclare(
             queue: QueueName,
             durable: true,
             exclusive: false,
-            autoDelete: false).GetAwaiter().GetResult();
+            autoDelete: false);
 
         _logger.LogInformation("RabbitMQ consumer initialized");
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Message consumer service started");
 
-        await _channel.BasicQosAsync(prefetchSize: 0, prefetchCount: 10, global: false);
+        _channel.BasicQos(prefetchSize: 0, prefetchCount: 10, global: false);
 
-        var consumer = new AsyncEventingBasicConsumer(_channel);
-        consumer.ReceivedAsync += async (model, ea) =>
+        var consumer = new EventingBasicConsumer(_channel);
+        consumer.Received += async (model, ea) =>
         {
             try
             {
@@ -69,7 +69,7 @@ public class MessageConsumerService : BackgroundService
                 {
                     await _databaseWriter.WriteSensorReadingAsync(reading, stoppingToken);
                     
-                    await _channel.BasicAckAsync(deliveryTag: ea.DeliveryTag, multiple: false);
+                    _channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
                     
                     _metricsService.RecordMessageProcessed(QueueName, true);
                     _logger.LogInformation("Processed reading from sensor {SensorId}", reading.SensorId);
@@ -82,18 +82,17 @@ public class MessageConsumerService : BackgroundService
                 _metricsService.RecordError("message_processing_failed");
                 
                 // Reject and requeue the message
-                await _channel.BasicNackAsync(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
+                _channel.BasicNack(deliveryTag: ea.DeliveryTag, multiple: false, requeue: true);
             }
         };
 
-        await _channel.BasicConsumeAsync(
+        _channel.BasicConsume(
             queue: QueueName,
             autoAck: false,
-            consumer: consumer,
-            cancellationToken: stoppingToken);
+            consumer: consumer);
 
         // Keep the service running
-        await Task.Delay(Timeout.Infinite, stoppingToken);
+        return Task.CompletedTask;
     }
 
     public override void Dispose()
