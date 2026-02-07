@@ -7,9 +7,10 @@ namespace Gateway.Services;
 public class AzuriteBlobStorage : IBlobStorage
 {
     private readonly BlobServiceClient _blobServiceClient;
-    private readonly BlobContainerClient _containerClient;
     private readonly ILogger<AzuriteBlobStorage> _logger;
     private const string ContainerName = "sensor-images";
+    private bool _containerInitialized = false;
+    private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
 
     public AzuriteBlobStorage(
         IOptions<AzuriteConfiguration> config,
@@ -17,12 +18,29 @@ public class AzuriteBlobStorage : IBlobStorage
     {
         _logger = logger;
         _blobServiceClient = new BlobServiceClient(config.Value.ConnectionString);
-        _containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
-        
-        // Create container if it doesn't exist
-        _containerClient.CreateIfNotExistsAsync().GetAwaiter().GetResult();
         
         _logger.LogInformation("Azurite blob storage initialized");
+    }
+
+    private async Task EnsureContainerExistsAsync(CancellationToken cancellationToken)
+    {
+        if (_containerInitialized)
+            return;
+
+        await _initLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!_containerInitialized)
+            {
+                var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
+                await containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+                _containerInitialized = true;
+            }
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     public async Task<string> UploadImageAsync(
@@ -33,8 +51,11 @@ public class AzuriteBlobStorage : IBlobStorage
     {
         try
         {
+            await EnsureContainerExistsAsync(cancellationToken);
+
+            var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
             var blobName = $"{sensorId}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}.jpg";
-            var blobClient = _containerClient.GetBlobClient(blobName);
+            var blobClient = containerClient.GetBlobClient(blobName);
 
             using var stream = new MemoryStream(imageData);
             
