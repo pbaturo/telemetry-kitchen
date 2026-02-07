@@ -8,17 +8,26 @@ On-prem IoT observability & performance lab built to **learn by measurement**:
 - **Metabase** for self-hosted analytics/BI
 - **Azurite** for Azure Blob–compatible local object storage (camera snapshots)
 
-Target runtime: **Docker Compose** on a laptop. Code: **.NET 10**.
+Target runtime: **Docker Compose** on a laptop. Code: **.NET 9**.
 
 > Philosophy: start naive → measure → improve → compare.
 
-## What’s inside (planned structure)
+## Status: Phase 1 Complete ✅
 
-- `src/Gateway.Poller` — polls external sensors → RabbitMQ
-- `src/Ingest.Consumer` — RabbitMQ → PostgreSQL (idempotent)
-- `src/Web.Mvc` — ASP.NET Core MVC UI (sensors, status, history)
-- `infra/compose` — docker-compose stack (postgres, rabbitmq, prometheus, grafana, metabase, azurite)
-- `docs/` — architecture notes + exported dashboards
+**Implemented & Running:**
+- ✅ `src/Gateway.Poller` — polls 10 real OpenSenseMap sensors → RabbitMQ
+- ✅ `src/Ingest.Consumer` — RabbitMQ → PostgreSQL (idempotent, with deduplication)
+- ✅ `src/Shared` — shared contracts and utilities
+- ✅ `infra/compose` — docker-compose with 7 services (postgres, rabbitmq, gateway-poller, ingest-consumer, prometheus, grafana, pgadmin)
+- ✅ `docs/` — architecture notes + Grafana dashboard
+- ✅ Prometheus metrics collection and scraping
+
+## Roadmap: Phase 2+ (Future)
+
+- 🔄 `src/Web.Mvc` — ASP.NET Core MVC UI for sensors, status dashboard, history views
+- 🔄 Metabase integration — self-hosted analytics/BI dashboards
+- 🔄 Azurite — local object storage for camera snapshots and media
+- 🔄 Additional external APIs (USGS, Weather.com, Sensor.Community)
 
 ## Quick start (placeholder)
 
