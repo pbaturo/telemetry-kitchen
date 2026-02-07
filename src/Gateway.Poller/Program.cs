@@ -232,7 +232,9 @@ public class PollerService : BackgroundService
                 ReceivedAt = receivedAt,
                 StatusLevel = statusLevel,
                 StatusMessage = statusMessage,
-                Measurements = measurements
+                Measurements = measurements,
+                Lat = station.Lat,
+                Lon = station.Lon
             };
 
             // Publish to RabbitMQ (durability gate)

@@ -12,6 +12,8 @@ public record SensorEvent
     public required StatusLevel StatusLevel { get; init; }
     public string? StatusMessage { get; init; }
     public required IReadOnlyList<Measurement> Measurements { get; init; }
+    public double? Lat { get; init; }
+    public double? Lon { get; init; }
     public string? BlobUri { get; init; }
     public string? BlobSha256 { get; init; }
     public long? BlobBytes { get; init; }

@@ -40,10 +40,19 @@ public class SensorRepository : ISensorRepository
     public async Task<SensorDetail?> GetSensorDetailAsync(string sensorId)
     {
         var sensor = await _context.Sensors
-            .Include(s => s.Events.OrderByDescending(e => e.ObservedAt).Take(50))
             .FirstOrDefaultAsync(s => s.SensorId == sensorId);
 
         if (sensor == null) return null;
+
+        // Get recent events separately (EF Core can't translate complex include expressions)
+        var recentEvents = await _context.SensorEvents
+            .Where(e => e.SensorId == sensorId)
+            .OrderByDescending(e => e.ObservedAt)
+            .Take(50)
+            .ToListAsync();
+
+        var totalEventCount = await _context.SensorEvents
+            .CountAsync(e => e.SensorId == sensorId);
 
         return new SensorDetail
         {
@@ -54,17 +63,25 @@ public class SensorRepository : ISensorRepository
             Lon = sensor.Lon,
             CreatedAt = sensor.CreatedAt,
             UpdatedAt = sensor.UpdatedAt,
-            RecentEvents = sensor.Events
+            RecentEvents = recentEvents
                 .Select(e => new EventSummary
                 {
                     EventId = e.EventId,
                     ObservedAt = e.ObservedAt,
                     StatusLevel = e.StatusLevel,
                     StatusMessage = e.StatusMessage,
-                    Measurements = e.Measurements ?? new Dictionary<string, object>()
+                    Measurements = e.Measurements?.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array
+                        ? e.Measurements.RootElement.EnumerateArray()
+                            .Where(item => item.TryGetProperty("name", out _))
+                            .Select(item => new KeyValuePair<string, object>(
+                                item.GetProperty("name").GetString() ?? "",
+                                item.TryGetProperty("value", out var val) ? val.ToString() : ""
+                            ))
+                            .ToList()
+                        : []
                 })
                 .ToList(),
-            TotalEventCount = await _context.SensorEvents.CountAsync(e => e.SensorId == sensorId)
+            TotalEventCount = totalEventCount
         };
     }
 
@@ -117,7 +134,7 @@ public class EventSummary
     public DateTime ObservedAt { get; set; }
     public string StatusLevel { get; set; } = string.Empty;
     public string? StatusMessage { get; set; }
-    public Dictionary<string, object> Measurements { get; set; } = [];
+    public List<KeyValuePair<string, object>> Measurements { get; set; } = [];
 }
 
 public class SensorMapPoint

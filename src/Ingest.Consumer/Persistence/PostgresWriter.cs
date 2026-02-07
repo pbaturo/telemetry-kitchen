@@ -39,8 +39,8 @@ public class PostgresWriter : IPostgresWriter
                 cmd.Parameters.AddWithValue("sensor_id", (object?)sensorEvent.SensorId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("source_type", (object?)sensorEvent.SourceType ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("display_name", (object?)sensorEvent.SensorId ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("lat", DBNull.Value);
-                cmd.Parameters.AddWithValue("lon", DBNull.Value);
+                cmd.Parameters.AddWithValue("lat", (object?)sensorEvent.Lat ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("lon", (object?)sensorEvent.Lon ?? DBNull.Value);
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 

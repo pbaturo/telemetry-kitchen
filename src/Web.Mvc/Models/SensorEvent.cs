@@ -1,5 +1,7 @@
 namespace Web.Mvc.Models;
 
+using System.Text.Json;
+
 public class SensorEvent
 {
     public string EventId { get; set; } = string.Empty;
@@ -14,7 +16,7 @@ public class SensorEvent
     public string StatusLevel { get; set; } = string.Empty;
     public string? StatusMessage { get; set; }
 
-    public Dictionary<string, object>? Measurements { get; set; }
+    public JsonDocument? Measurements { get; set; }
 
     public string? BlobUri { get; set; }
     public string? BlobSha256 { get; set; }
