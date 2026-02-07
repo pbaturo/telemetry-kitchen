@@ -1,10 +1,41 @@
 # Telemetry Kitchen
 
-On-prem IoT observability &amp; performance lab built with .NET 10, RabbitMQ, PostgreSQL, Prometheus/Grafana, Metabase, and Azure-Blob-compatible storage. Uses real public sensors first, then simulators, to empirically study ingestion reliability, database behaviour, and anomaly detection.
+On-prem IoT observability & performance lab built with .NET 10, RabbitMQ, PostgreSQL, Prometheus/Grafana, Metabase, and Azure-Blob-compatible storage. Uses real public sensors first, then simulators, to empirically study ingestion reliability, database behaviour, and anomaly detection.
 
 ## Architecture
 
-The Telemetry Kitchen consists of the following components:
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                       Telemetry Kitchen                              │
+└─────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────┐         ┌────────────┐         ┌──────────────┐
+  │ Public APIs  │◄────────│  Gateway   │────────►│  RabbitMQ    │
+  │ (Open-Meteo) │  REST   │  (.NET 10) │  Pub    │  (Exchange)  │
+  └──────────────┘         └────┬───────┘         └──────┬───────┘
+                                │                        │
+                                │ Metrics                │ Sub
+                                ▼                        ▼
+  ┌──────────────┐         ┌────────────┐         ┌──────────────┐
+  │  Prometheus  │◄────────│  Consumer  │────────►│  PostgreSQL  │
+  │              │ Scrape  │  (.NET 10) │  Write  │  (Database)  │
+  └──────┬───────┘         └────────────┘         └──────┬───────┘
+         │                                               │
+         │ Query                                         │ Query
+         ▼                                               ▼
+  ┌──────────────┐                               ┌──────────────┐
+  │   Grafana    │                               │   Metabase   │
+  │  (Ops Viz)   │                               │  (Analytics) │
+  └──────────────┘                               └──────────────┘
+
+  ┌──────────────┐
+  │   Azurite    │◄────────────────────────┐
+  │ (Blob Store) │                         │ (Future: Images)
+  └──────────────┘                         │
+                                    ┌──────┴───────┐
+                                    │   Gateway    │
+                                    └──────────────┘
+```
 
 ### Core Services
 - **Gateway Service** (.NET 10): Polls real public sensors via REST APIs, publishes critical streams to RabbitMQ
