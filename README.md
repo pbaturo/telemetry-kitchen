@@ -377,7 +377,7 @@ This is a learning/experimental project. Contributions welcome!
 
 ## License
 
-[MIT License](LICENSE)
+[Apache License 2.0](LICENSE)
 
 ---
 
