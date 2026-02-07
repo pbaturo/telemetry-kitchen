@@ -87,7 +87,7 @@ public class SensorRepository : ISensorRepository
 
     public async Task<List<SensorMapPoint>> GetMapPointsAsync()
     {
-        return await _context.Sensors
+        var sensors = await _context.Sensors
             .Where(s => s.Lat != null && s.Lon != null)
             .Select(s => new SensorMapPoint
             {
@@ -100,6 +100,35 @@ public class SensorRepository : ISensorRepository
             })
             .OrderBy(s => s.DisplayName)
             .ToListAsync();
+
+        foreach (var sensor in sensors)
+        {
+            var lastEvent = await _context.SensorEvents
+                .Where(e => e.SensorId == sensor.SensorId)
+                .OrderByDescending(e => e.ObservedAt)
+                .FirstOrDefaultAsync();
+
+            if (lastEvent?.Measurements?.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                sensor.LastMeasurements = lastEvent.Measurements.RootElement
+                    .EnumerateArray()
+                    .Where(item => item.TryGetProperty("name", out _))
+                    .Select(item => new MeasurementItem
+                    {
+                        Name = item.GetProperty("name").GetString() ?? "",
+                        Value = item.TryGetProperty("value", out var val) ? val.ToString() : "",
+                        Unit = item.TryGetProperty("unit", out var unit) ? unit.ToString() : ""
+                    })
+                    .ToList();
+            }
+
+            if (lastEvent != null)
+            {
+                sensor.LastEventTime = lastEvent.ObservedAt;
+            }
+        }
+
+        return sensors;
     }
 }
 
@@ -145,4 +174,12 @@ public class SensorMapPoint
     public double Lon { get; set; }
     public int EventCount { get; set; }
     public DateTime? LastEventTime { get; set; }
+    public List<MeasurementItem> LastMeasurements { get; set; } = [];
+}
+
+public class MeasurementItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Unit { get; set; } = string.Empty;
 }

@@ -70,7 +70,7 @@ flowchart TB
     direction TB
     
     subgraph WEB["Web Applications"]
-      MVC["🌐 Web.Mvc<br/>.NET 9 MVC<br/>━━━━━━━━<br/>Read-only UI<br/>Sensor status<br/>History views<br/><i>Phase 2</i>"]
+      MVC["🌐 Web.Mvc<br/>.NET 9 MVC<br/>━━━━━━━━<br/>Read-only UI<br/>Sensor status<br/>History views<br/>Exposes /metrics<br/>Serilog → Loki<br/><i>Phase 2</i>"]
     end
     
     subgraph ANALYTICS["Analytics & BI"]
@@ -94,10 +94,12 @@ flowchart TB
   %% ==============================================
   GP -.->|"/metrics endpoint"| PROM
   IC -.->|"/metrics endpoint"| PROM
+  MVC -.->|"/metrics endpoint"| PROM
   MQ -.->|"built-in /metrics"| PROM
   DB --> PGX
   GP -.->|"Serilog logs"| LOKI
   IC -.->|"Serilog logs"| LOKI
+  MVC -.->|"Serilog logs"| LOKI
 
   %% ==============================================
   %% CONNECTIONS - Storage to Client Area

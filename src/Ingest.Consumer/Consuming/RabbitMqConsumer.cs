@@ -60,6 +60,12 @@ public class RabbitMqConsumer : IRabbitMqConsumer
                 { "x-queue-mode", "lazy" }
             });
 
+        // Bind queue to sensor-events exchange with wildcard routing key
+        _channel.QueueBind(
+            queue: _queueName,
+            exchange: "sensor-events",
+            routingKey: "sensor.#");
+
         // Set QoS
         _channel.BasicQos(0, 10, false);
 

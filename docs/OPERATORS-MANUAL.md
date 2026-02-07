@@ -44,8 +44,30 @@ tk-grafana            :3000   Visualization
 tk-pgadmin            :5050   DB admin UI
 tk-node-exporter      :9100   System metrics
 tk-gateway-poller     :9090   Metrics endpoint
+tk-web-mvc            :5000   Web UI + metrics
 tk-ingest-consumer    (internal)
 ```
+
+**Metrics Endpoints:**
+| Component | Endpoint | Notes |
+| --- | --- | --- |
+| Gateway.Poller | http://localhost:9090/metrics | Prometheus metrics |
+| Web MVC | http://localhost:5000/metrics | Prometheus metrics |
+| RabbitMQ | http://localhost:15692/metrics | Prometheus plugin |
+| Postgres Exporter | http://localhost:9187/metrics | DB metrics |
+| Node Exporter | http://localhost:9100/metrics | Host metrics |
+| Prometheus UI | http://localhost:9091 | Query and graph metrics |
+| Grafana | http://localhost:3000 | Dashboards and logs |
+
+**Prometheus Scrape Targets:**
+| Job Name | Target | Scrape Interval | Component |
+| --- | --- | --- | --- |
+| prometheus | localhost:9090 | 15s | Self-monitoring |
+| gateway-poller | host.docker.internal:9090 | 10s | Polling service |
+| web-mvc | web-mvc:5000 | 10s | Web UI |
+| postgres | postgres-exporter:9187 | 10s | Database exporter |
+| rabbitmq | rabbitmq:15692 | 10s | Message broker |
+| node | node-exporter:9100 | 10s | System metrics |
 
 ---
 
@@ -149,6 +171,16 @@ Expected: Events from last hour, 10+ active sensors
 - **Event Status Distribution:** Pie chart of OK/WARN/ERROR events
 - **Recent Events:** Table of last 50 events with details
 - **Service Logs:** Loki logs from Gateway.Poller and Ingest.Consumer
+
+#### 3. **Web MVC - HTTP Metrics**
+**Purpose:** Web UI traffic, latency, and error monitoring
+
+**Key Panels:**
+- **Requests/sec** — current HTTP traffic rate
+- **5xx Errors/sec** — server error rate
+- **P95 Request Duration** — web latency
+- **In-Flight Requests** — concurrent requests
+- **Requests/sec by Status Code** — traffic breakdown
 
 ### Exploring Logs in Grafana
 

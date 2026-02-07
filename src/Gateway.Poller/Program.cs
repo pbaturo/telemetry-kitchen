@@ -160,7 +160,8 @@ public class PollerService : BackgroundService
             // Parse OpenSenseMap response
             try
             {
-                var openSenseData = JsonSerializer.Deserialize<OpenSenseMapResponse>(responseBody);
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var openSenseData = JsonSerializer.Deserialize<OpenSenseMapResponse>(responseBody, options);
                 if (openSenseData?.Sensors != null)
                 {
                     foreach (var sensor in openSenseData.Sensors)

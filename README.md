@@ -88,6 +88,7 @@ docker ps
 - **Grafana** → localhost:3000
 - **Loki** → localhost:3100
 - **PGAdmin** → localhost:5050
+- **Web MVC UI** → http://localhost:5000
 
 ### 2. Access Dashboards
 
@@ -97,6 +98,7 @@ docker ps
 | **RabbitMQ** | http://localhost:15672 | tk / tk |
 | **PGAdmin** | http://localhost:5050 | admin@example.com / admin |
 | **Prometheus** | http://localhost:9091 | - |
+| **Web MVC UI** | http://localhost:5000 | - |
 
 ### 3. View Data Ingestion
 
@@ -104,6 +106,11 @@ docker ps
 1. Login to http://localhost:3000
 2. Navigate to **Dashboards** → **Operational Monitoring - Ingest Reliability**
 3. Watch metrics populate in real-time
+
+**Web MVC Dashboard:**
+1. Login to http://localhost:3000
+2. Navigate to **Dashboards** → **Web MVC - HTTP Metrics**
+3. Verify request rate, latency, and 5xx errors
 
 **Database Queries (PGAdmin):**
 1. Login to http://localhost:5050
@@ -128,6 +135,18 @@ LIMIT 20;
 docker logs -f tk-gateway-poller
 docker logs -f tk-ingest-consumer
 ```
+
+### 5. Metrics Endpoints
+
+| Component | Endpoint | Notes |
+| --- | --- | --- |
+| Gateway.Poller | http://localhost:9090/metrics | Prometheus metrics |
+| Web MVC | http://localhost:5000/metrics | Prometheus metrics |
+| RabbitMQ | http://localhost:15692/metrics | Prometheus plugin |
+| Postgres Exporter | http://localhost:9187/metrics | DB metrics |
+| Node Exporter | http://localhost:9100/metrics | Host metrics |
+| Prometheus UI | http://localhost:9091 | Query and graph metrics |
+| Grafana | http://localhost:3000 | Dashboards and logs |
 
 ---
 

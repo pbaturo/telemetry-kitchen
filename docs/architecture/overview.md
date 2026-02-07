@@ -16,14 +16,14 @@ flowchart LR
   end
 
   subgraph LAB[Telemetry Kitchen (On-Prem / Docker Compose)]
-    GP[Gateway.Poller (.NET 10)]
+    GP[Gateway.Poller (.NET 9)]
     MQ[(RabbitMQ)\nDurability gate]
-    IC[Ingest.Consumer (.NET 10)]
+    IC[Ingest.Consumer (.NET 9)]
     DB[(PostgreSQL - vanilla)\nSingle instance\nNaive baseline schema]
     PROM[(Prometheus)]
     GRAF[Grafana]
     META[Metabase]
-    MVC[Web.Mvc (.NET 10 MVC)]
+    MVC[Web.Mvc (.NET 9 MVC)]
     AZ[(Azurite)\n(Phase 2 blobs)]
     PGX[postgres_exporter]
     RMQX[rabbitmq_exporter]
@@ -43,6 +43,7 @@ flowchart LR
 
   GP -->|/metrics| PROM
   IC -->|/metrics| PROM
+  MVC -->|/metrics| PROM
   PGX --> PROM
   RMQX --> PROM
   CAD --> PROM

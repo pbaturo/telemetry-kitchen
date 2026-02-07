@@ -29,6 +29,7 @@ This starts:
 - pgAdmin (port 5050 - http://localhost:5050)
 - Prometheus (port 9091 - http://localhost:9091)
 - Grafana (port 3000 - http://localhost:3000)
+- Web MVC UI (port 5000 - http://localhost:5000)
 
 **Credentials:**
 
@@ -66,7 +67,27 @@ Grafana (port 3000) - visualizes metrics
 
 Gateway.Poller also writes sensor events directly to PostgreSQL.
 
-### 3. Verify Data Ingestion
+### 3. Web MVC UI
+
+If running via Docker Compose, the Web MVC UI is available at:
+http://localhost:5000
+
+It exposes Prometheus metrics at:
+http://localhost:5000/metrics
+
+### 4. Observability Endpoints
+
+| Component | Endpoint | Notes |
+| --- | --- | --- |
+| Gateway.Poller | http://localhost:9090/metrics | Prometheus metrics |
+| Web MVC | http://localhost:5000/metrics | Prometheus metrics |
+| RabbitMQ | http://localhost:15692/metrics | Prometheus plugin |
+| Postgres Exporter | http://localhost:9187/metrics | DB metrics |
+| Node Exporter | http://localhost:9100/metrics | Host metrics |
+| Prometheus UI | http://localhost:9091 | Query and graph metrics |
+| Grafana | http://localhost:3000 | Dashboards and logs |
+
+### 5. Verify Data Ingestion
 
 #### Option A: Using pgAdmin (Web UI)
 
@@ -143,7 +164,7 @@ histogram_quantile(0.95, rate(tk_poll_duration_ms_bucket[5m]))
 
 # Events inserted per sensor
 sum by (sensorId) (increase(tk_events_inserted_total[1h]))
-```asurements array
+```
 
 **Key Metrics (Prometheus):**
 - `tk_polls_total` - Total polls attempted
