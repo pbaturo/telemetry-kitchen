@@ -20,7 +20,7 @@ builder.Host.UseSerilog((context, configuration) =>
 builder.Services.AddDbContext<TelemetryDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("PostgreSQL") 
-        ?? "Host=postgres;Port=5432;Database=telemetry;Username=telemetry;Password=telemetry"));
+        ?? "Host=postgres;Port=5432;Database=telemetry_kitchen;Username=tk;Password=tk"));
 
 builder.Services.AddScoped<ISensorRepository, SensorRepository>();
 
