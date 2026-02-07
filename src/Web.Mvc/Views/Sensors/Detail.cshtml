@@ -1,0 +1,182 @@
+@model Web.Mvc.Repositories.SensorDetail
+
+@{
+    ViewData["Title"] = Model.DisplayName;
+}
+
+<div class="mb-3">
+    <a href="@Url.Action("Index", "Sensors")" class="btn btn-outline-secondary">
+        ← Back to Sensors
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <h1 class="page-title">📡 @Model.DisplayName</h1>
+    </div>
+    <div class="col-lg-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">Total Events</small>
+                        <h4>@Model.TotalEventCount.ToString("N0")</h4>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Created</small>
+                        <h6>@Model.CreatedAt.ToString("d")</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Sensor Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Sensor ID</strong>
+                        <p class="text-monospace text-muted">@Model.SensorId</p>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Source Type</strong>
+                        <p>@Model.SourceType</p>
+                    </div>
+                </div>
+                @if (Model.Lat.HasValue && Model.Lon.HasValue)
+                {
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Latitude</strong>
+                            <p>@Model.Lat?.ToString("F6")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Longitude</strong>
+                            <p>@Model.Lon?.ToString("F6")</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Recent Events (Last 50)</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Message</th>
+                            <th>Measurements</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.RecentEvents.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">No events yet</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var evt in Model.RecentEvents.OrderByDescending(e => e.ObservedAt))
+                            {
+                                <tr>
+                                    <td>
+                                        <small>@evt.ObservedAt.ToString("g")</small>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var statusClass = evt.StatusLevel switch
+                                            {
+                                                "ERROR" => "danger",
+                                                "WARN" => "warning",
+                                                "INFO" => "success",
+                                                _ => "secondary"
+                                            };
+                                        }
+                                        <span class="badge bg-@statusClass">@evt.StatusLevel</span>
+                                    </td>
+                                    <td>
+                                        <small>@evt.StatusMessage</small>
+                                    </td>
+                                    <td>
+                                        @if (evt.Measurements.Any())
+                                        {
+                                            <small>
+                                                @string.Join(", ", evt.Measurements.Take(2).Select(m => $"{m.Key}={m.Value}"))
+                                                @if (evt.Measurements.Count > 2)
+                                                {
+                                                    <text>...</text>
+                                                }
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">None</small>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        @if (Model.Lat.HasValue && Model.Lon.HasValue)
+        {
+            <div class="card" style="height: 400px;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Location</h6>
+                </div>
+                <div id="detail-map" style="height: 350px;"></div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <small>📍 No location data available for this sensor</small>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.Lat.HasValue && Model.Lon.HasValue)
+    {
+        <script>
+            const map = L.map('detail-map').setView([@Model.Lat, @Model.Lon], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            L.circleMarker([@Model.Lat, @Model.Lon], {
+                radius: 10,
+                fillColor: '#667eea',
+                color: '#333',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map).bindPopup('<strong>@Model.DisplayName</strong>');
+        </script>
+    }
+
+    <script>
+        // Auto-refresh every 30 seconds
+        setTimeout(() => location.reload(), 30000);
+    </script>
+}
