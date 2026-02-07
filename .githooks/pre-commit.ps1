@@ -8,19 +8,27 @@ Write-Host ""
 $buildOutput = & dotnet build 2>&1
 $buildExitCode = $LASTEXITCODE
 
-# Check for errors
-if ($buildOutput -match '(\berror\b|^Build FAILED)') {
+# Check for actual errors (exclude "0 Error(s)" success message)
+$errorLines = $buildOutput | Select-String -Pattern '\berror\b' | Where-Object { 
+    $_.Line -notmatch '0 Error\(s\)' -and 
+    $_.Line -notmatch ': 0$'
+}
+if ($errorLines -or $buildOutput -match 'Build FAILED') {
     Write-Host "[FAIL] BUILD FAILED: Compilation errors detected" -ForegroundColor Red
     Write-Host ""
-    $buildOutput | Select-String -Pattern 'error' | Format-Table -AutoSize
+    $errorLines | Format-Table -AutoSize
     exit 1
 }
 
-# Check for warnings
-if ($buildOutput -match '\bwarning\b') {
+# Check for actual warnings (exclude "0 Warning(s)" success message)
+$warningLines = $buildOutput | Select-String -Pattern '\bwarning\b' | Where-Object {
+    $_.Line -notmatch '0 Warning\(s\)' -and
+    $_.Line -notmatch ': 0$'
+}
+if ($warningLines) {
     Write-Host "[WARN] BUILD WARNING: Warnings detected (no-warnings policy enforced)" -ForegroundColor Yellow
     Write-Host ""
-    $buildOutput | Select-String -Pattern 'warning'
+    $warningLines | Format-List
     Write-Host ""
     Write-Host "Please fix all warnings before committing." -ForegroundColor Yellow
     exit 1
