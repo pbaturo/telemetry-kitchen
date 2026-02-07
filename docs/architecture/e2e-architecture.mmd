@@ -1,30 +1,30 @@
 flowchart LR
   %% External real-world sources (Phase 1)
-  subgraph EXT[External Public Sensors (REST GET)]
+  subgraph EXT["External Public Sensors REST GET"]
     OS[openSenseMap API]
     SC[Sensor.Community API]
     USGS[USGS Water Services API]
   end
 
   %% On-prem lab (Docker Compose)
-  subgraph LAB[Telemetry Kitchen (On-Prem / Docker Compose)]
-    GP[Gateway.Poller (.NET 10)\n- polls external APIs\n- normalizes to SensorEvent\n- publishes to RabbitMQ\n- exposes /metrics]
+  subgraph LAB["Telemetry Kitchen - Docker Compose"]
+    GP[Gateway.Poller .NET 10\n- polls external APIs\n- normalizes to SensorEvent\n- publishes to RabbitMQ\n- exposes metrics]
     MQ[(RabbitMQ)\nDurability gate]
-    IC[Ingest.Consumer (.NET 10)\n- consumes queues\n- idempotency\n- writes Postgres\n- exposes /metrics]
-    DB[(PostgreSQL - vanilla)\nSingle instance\nNaive baseline schema\n(one big table first)]
+    IC[Ingest.Consumer .NET 10\n- consumes queues\n- idempotency\n- writes Postgres\n- exposes metrics]
+    DB[(PostgreSQL vanilla\nSingle instance\nNaive baseline schema\none big table first)]
 
     PROM[(Prometheus)\nScrapes metrics]
-    GRAF[Grafana\nOps dashboards + alerts]
-    META[Metabase\nAnalytics/BI dashboards]
-    MVC[Web.Mvc (.NET 10 MVC)\nRead-only UI (Phase 1+)\nSensors/status/history]
+    GRAF[Grafana\nOps dashboards and alerts]
+    META[Metabase\nAnalytics and BI dashboards]
+    MVC[Web.Mvc .NET 10 MVC\nRead-only UI Phase 1\nSensors status history]
 
     %% Phase 2 (optional)
-    AZ[(Azurite)\nAzure Blob-compatible\nLocal object storage\n(Phase 2 for camera blobs)]
+    AZ[(Azurite\nAzure Blob-compatible\nLocal object storage\nPhase 2 for camera blobs)]
 
     %% Exporters (optional early, likely Phase 1.1)
     PGX[postgres_exporter]
     RMQX[rabbitmq_exporter]
-    CAD[cAdvisor/node-exporter\nCPU/RAM/Disk/Net]
+    CAD[cAdvisor node-exporter\nCPU RAM Disk Net]
   end
 
   %% External -> Gateway
@@ -35,15 +35,15 @@ flowchart LR
   %% Ingestion pipeline
   GP -->|Publish SensorEvent| MQ
   MQ -->|Consume| IC
-  IC -->|INSERT (idempotent)| DB
+  IC -->|INSERT idempotent| DB
 
-  %% UI / Analytics read path
-  MVC -->|read/query| DB
-  META -->|read/query| DB
+  %% UI Analytics read path
+  MVC -->|read query| DB
+  META -->|read query| DB
 
   %% Observability
-  GP -->|/metrics| PROM
-  IC -->|/metrics| PROM
+  GP -->|metrics| PROM
+  IC -->|metrics| PROM
   PGX --> PROM
   RMQX --> PROM
   CAD --> PROM
@@ -54,5 +54,5 @@ flowchart LR
   MQ --> RMQX
 
   %% Phase 2: blobs
-  GP -.->|store blob (optional)| AZ
-  IC -.->|store blobRef+checksum| DB
+  GP -.->|store blob optional| AZ
+  IC -.->|store blobRef checksum| DB
