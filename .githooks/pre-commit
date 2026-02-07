@@ -1,0 +1,53 @@
+#!/bin/bash
+# Pre-commit hook: No warnings/errors policy
+# Calls PowerShell version on Windows, native Bash on Unix
+
+# Get the directory of this script
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if running on Windows (MSYSTEM is set in Git Bash on Windows)
+if [[ -n "$MSYSTEM" ]] && [[ -f "$HOOK_DIR/pre-commit.ps1" ]]; then
+    # Windows: Use PowerShell
+    powershell.exe -ExecutionPolicy Bypass -File "$HOOK_DIR/pre-commit.ps1"
+    exit $?
+fi
+
+# Unix/Linux/Mac: Use native Bash
+set -e
+
+echo "🔍 Checking for compilation errors and warnings..."
+echo ""
+
+# Run dotnet build and capture output
+BUILD_OUTPUT=$(dotnet build 2>&1)
+BUILD_EXIT_CODE=$?
+
+# Check for errors
+if echo "$BUILD_OUTPUT" | grep -qi "error"; then
+    echo "❌ BUILD FAILED: Compilation errors detected"
+    echo ""
+    echo "$BUILD_OUTPUT" | grep -i "error"
+    exit 1
+fi
+
+# Check for warnings
+if echo "$BUILD_OUTPUT" | grep -qi "warning"; then
+    echo "⚠️  BUILD WARNING: Warnings detected (no-warnings policy enforced)"
+    echo ""
+    echo "$BUILD_OUTPUT" | grep -i "warning"
+    echo ""
+    echo "Please fix all warnings before committing."
+    exit 1
+fi
+
+# Check build exit code
+if [ $BUILD_EXIT_CODE -ne 0 ]; then
+    echo "❌ BUILD FAILED: dotnet build exited with code $BUILD_EXIT_CODE"
+    echo ""
+    echo "$BUILD_OUTPUT"
+    exit 1
+fi
+
+echo "✅ No errors or warnings detected"
+echo "✅ Build successful - proceeding with commit"
+echo ""
