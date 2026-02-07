@@ -74,6 +74,29 @@ services:
       - loki
     restart: unless-stopped
 
+  metabase:
+    image: metabase/metabase:latest
+    container_name: tk-metabase
+    ports:
+      - "3001:3000"
+    environment:
+      # Use embedded H2 database for Metabase metadata (not the telemetry data)
+      MB_DB_TYPE: h2
+      # Connect to PostgreSQL as a data source for telemetry queries
+      MB_ADMIN_EMAIL: admin@example.com
+      MB_ADMIN_PASSWORD: admin
+    volumes:
+      - tk_metabase_data:/metabase-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: tk-rabbitmq
@@ -181,3 +204,4 @@ volumes:
   tk_grafanadata:
   tk_rabbitmq_data:
   tk_loki_data:
+  tk_metabase_data:

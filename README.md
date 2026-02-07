@@ -86,6 +86,7 @@ docker ps
 - **RabbitMQ** → localhost:5672 (AMQP), localhost:15672 (Management UI)
 - **Prometheus** → localhost:9091
 - **Grafana** → localhost:3000
+- **Metabase** → localhost:3001
 - **Loki** → localhost:3100
 - **PGAdmin** → localhost:5050
 - **Web MVC UI** → http://localhost:5000
@@ -95,6 +96,7 @@ docker ps
 | Service | URL | Credentials |
 |---------|-----|-------------|
 | **Grafana** | http://localhost:3000 | admin / admin |
+| **Metabase** | http://localhost:3001 | admin@example.com / admin |
 | **RabbitMQ** | http://localhost:15672 | tk / tk |
 | **PGAdmin** | http://localhost:5050 | admin@example.com / admin |
 | **Prometheus** | http://localhost:9091 | - |
@@ -106,6 +108,12 @@ docker ps
 1. Login to http://localhost:3000
 2. Navigate to **Dashboards** → **Operational Monitoring - Ingest Reliability**
 3. Watch metrics populate in real-time
+
+**Metabase Analytics:**
+1. Login to http://localhost:3001
+2. Click **+ New** → **SQL query**
+3. Explore sensor data with custom SQL queries
+4. See [METABASE-SETUP.md](docs/METABASE-SETUP.md) for query examples and dashboard setup
 
 **Web MVC Dashboard:**
 1. Login to http://localhost:3000
@@ -182,17 +190,22 @@ docker logs -f tk-ingest-consumer
 ### 📘 For Operators
 - **[Operators Manual](docs/OPERATORS-MANUAL.md)** — Complete operations guide
   - Daily health checks
-  - Using Grafana, PGAdmin, RabbitMQ
+  - Using Grafana, Metabase, PGAdmin, RabbitMQ
   - Viewing logs and metrics
   - Troubleshooting scenarios
   - Performance baselines
 
-### 📗 For Developers
+### 📗 For Developers & Analysts
 - **[Local Development Runbook](docs/runbooks/local-dev.md)** — Setup and development guide
   - Running services locally
   - Database schema
   - Configuration options
   - Troubleshooting development issues
+- **[Metabase Setup Guide](docs/METABASE-SETUP.md)** — Self-hosted BI analytics
+  - Dashboard creation
+  - Custom SQL query library
+  - Integration examples
+  - Troubleshooting
 
 ### 📙 Architecture
 - **[Architecture Overview](docs/architecture/overview.md)** — High-level design
@@ -304,20 +317,23 @@ dotnet test
 
 ## Roadmap
 
-### 🔄 Phase 2 (Planned)
+### 🔄 Phase 2 (In Progress)
 
 **Web UI & Analytics:**
 - [ ] `src/Web.Mvc` — ASP.NET Core MVC read-only UI
   - Sensor status dashboard
   - Event history views
   - Real-time metrics display
-- [ ] Metabase integration — self-hosted analytics/BI
-  - Custom SQL queries
-  - Interactive dashboards
-  - Export reports
+- [x] Metabase integration — self-hosted analytics/BI
+  - Docker Compose integration ✅
+  - PostgreSQL connection configured ✅
+  - Initial setup completed ✅
+  - [ ] Custom SQL query library (on-demand)
+  - [ ] Interactive dashboards for sensor analysis
+  - [ ] Export reports functionality
 
 **Extended Data Sources:**
-- [ ] Sensor.Community API integration
+- [x] Sensor.Community API integration (100+ sensors global)
 - [ ] USGS Water Services API integration
 - [ ] Custom sensor simulator for load testing
 

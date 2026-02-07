@@ -30,6 +30,13 @@ logs/
 tmp/
 temp/
 
+# --- Debug/temporary extracts ---
+*-payload.txt
+*_payload.txt
+*_config.txt
+sensor_community_config.txt
+sc-*.txt
+
 # --- Test results / coverage ---
 TestResults/
 **/coverage*/
