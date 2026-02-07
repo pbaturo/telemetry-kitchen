@@ -1,0 +1,28 @@
+graph LR
+    ExtAPI[External Public REST APIs<br/>OpenSenseMap, USGS, SensorCommunity]
+    
+    Poller[Gateway.Poller<br/>Polls external sensors via GET]
+    RabbitMQ[(RabbitMQ<br/>Durability Gate)]
+    Consumer[Ingest.Consumer<br/>Processes events]
+    Postgres[(PostgreSQL<br/>Single instance<br/>One big table baseline)]
+    
+    Prometheus[Prometheus]
+    Grafana[Grafana]
+    Metabase[Metabase]
+    
+    Azurite[(Azurite<br/>Blob Storage<br/>Phase 2: Camera blobs)]
+    
+    ExtAPI -->|HTTP GET| Poller
+    Poller -->|Publish| RabbitMQ
+    RabbitMQ -->|Subscribe| Consumer
+    Consumer -->|Write| Postgres
+    
+    Postgres -.->|Metrics| Prometheus
+    Prometheus -->|Visualize| Grafana
+    Postgres -->|Query| Metabase
+    
+    Consumer -.->|Phase 2| Azurite
+    
+    style RabbitMQ fill:#f9f,stroke:#333
+    style Postgres fill:#bbf,stroke:#333
+    style Azurite fill:#ddd,stroke:#333,stroke-dasharray: 5 5
