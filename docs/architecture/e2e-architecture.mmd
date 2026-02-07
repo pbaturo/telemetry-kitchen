@@ -1,58 +1,141 @@
-flowchart LR
-  %% External real-world sources (Phase 1)
-  subgraph EXT["External Public Sensors REST GET"]
-    OS[openSenseMap API]
-    SC[Sensor.Community API]
-    USGS[USGS Water Services API]
+%%{init: {'theme':'base', 'themeVariables': { 'primaryColor':'#1e1e1e','primaryTextColor':'#fff','primaryBorderColor':'#7c3aed','lineColor':'#6366f1','secondaryColor':'#2e7d32','tertiaryColor':'#0288d1'}}}%%
+flowchart TB
+  %% ==============================================
+  %% DATA SOURCES (External APIs - Phase 1)
+  %% ==============================================
+  subgraph EXT["🌍 DATA SOURCES - External Public APIs"]
+    direction LR
+    OS["📡 OpenSenseMap<br/>Environmental Sensors"]
+    SC["🌫️ Sensor.Community<br/>Air Quality Network"]
+    USGS["💧 USGS Water Services<br/>Hydrology Data"]
   end
 
-  %% On-prem lab (Docker Compose)
-  subgraph LAB["Telemetry Kitchen - Docker Compose"]
-    GP[Gateway.Poller .NET 10<br/>- polls external APIs<br/>- normalizes to SensorEvent<br/>- publishes to RabbitMQ<br/>- exposes metrics]
-    MQ[(RabbitMQ<br/>Durability gate)]
-    IC[Ingest.Consumer .NET 10<br/>- consumes queues<br/>- idempotency<br/>- writes Postgres<br/>- exposes metrics]
-    DB[(PostgreSQL vanilla<br/>Single instance<br/>Naive baseline schema<br/>one big table first)]
-
-    PROM[(Prometheus<br/>Scrapes metrics)]
-    GRAF[Grafana<br/>Ops dashboards and alerts]
-    META[Metabase<br/>Analytics and BI dashboards]
-    MVC[Web.Mvc .NET 10 MVC<br/>Read-only UI Phase 1<br/>Sensors status history]
-
-    %% Phase 2 (optional)
-    AZ[(Azurite<br/>Azure Blob-compatible<br/>Local object storage<br/>Phase 2 for camera blobs)]
-
-    %% Exporters (optional early, likely Phase 1.1)
-    PGX[postgres_exporter]
-    RMQX[rabbitmq_exporter]
-    CAD[cAdvisor node-exporter<br/>CPU RAM Disk Net]
+  %% ==============================================
+  %% INGESTION PROCESS (Core Data Pipeline)
+  %% ==============================================
+  subgraph INGEST["⚙️ INGESTION PROCESS - Telemetry Kitchen"]
+    direction TB
+    
+    subgraph GATEWAY["Gateway Layer"]
+      GP["🔄 Gateway.Poller<br/>.NET 9<br/>━━━━━━━━<br/>• Polls external APIs<br/>• Normalizes events<br/>• Publishes to queue<br/>• Exposes /metrics"]
+    end
+    
+    subgraph QUEUE["Message Broker"]
+      MQ[("💾 RabbitMQ<br/>━━━━━━━━<br/>Durability Gate<br/>Topic Exchange")]
+    end
+    
+    subgraph CONSUMER["Consumer Layer"]
+      IC["📥 Ingest.Consumer<br/>.NET 9<br/>━━━━━━━━<br/>• Consumes queue<br/>• Idempotency check<br/>• Writes to DB<br/>• Exposes /metrics"]
+    end
+    
+    subgraph STORAGE["Data Storage"]
+      DB[("🗄️ PostgreSQL 17<br/>━━━━━━━━<br/>Single Instance<br/>Naive baseline schema<br/>sensor_events table")]
+    end
+    
+    GP --> MQ
+    MQ --> IC
+    IC --> DB
   end
 
-  %% External -> Gateway
-  OS -->|HTTP GET| GP
-  SC -->|HTTP GET| GP
-  USGS -->|HTTP GET| GP
+  %% ==============================================
+  %% OBSERVABILITY (Monitoring & Logging)
+  %% ==============================================
+  subgraph OBS["📊 OBSERVABILITY STACK"]
+    direction TB
+    
+    subgraph COLLECT["Metrics Collection"]
+      PGX["📈 postgres_exporter<br/>DB metrics"]
+      NEX["💻 node_exporter<br/>System metrics"]
+    end
+    
+    subgraph TSDB["Time Series Storage"]
+      PROM[("⏱️ Prometheus<br/>━━━━━━━━<br/>Scrapes every 10s<br/>Stores metrics")]
+      LOKI[("📝 Loki<br/>━━━━━━━━<br/>Log aggregation<br/>JSON labels")]
+    end
+    
+    subgraph VIZ["Visualization"]
+      GRAF["📉 Grafana<br/>━━━━━━━━<br/>• Operational Dashboard<br/>• Sensor Overview<br/>• Logs Explorer"]
+    end
+    
+    PGX -.->|scrape| PROM
+    NEX -.->|scrape| PROM
+    PROM -.->|query| GRAF
+    LOKI -.->|query| GRAF
+  end
 
-  %% Ingestion pipeline
-  GP -->|Publish SensorEvent| MQ
-  MQ -->|Consume| IC
-  IC -->|INSERT idempotent| DB
+  %% ==============================================
+  %% CLIENT AREA (Applications & Analytics)
+  %% ==============================================
+  subgraph CLIENT["👥 CLIENT AREA - Applications"]
+    direction TB
+    
+    subgraph WEB["Web Applications"]
+      MVC["🌐 Web.Mvc<br/>.NET 9 MVC<br/>━━━━━━━━<br/>Read-only UI<br/>Sensor status<br/>History views<br/><i>Phase 2</i>"]
+    end
+    
+    subgraph ANALYTICS["Analytics & BI"]
+      META["📊 Metabase<br/>━━━━━━━━<br/>Self-hosted<br/>Ad-hoc queries<br/>Custom dashboards<br/><i>Phase 2</i>"]
+    end
+    
+    subgraph FUTURE["Future Capabilities"]
+      AZ[("☁️ Azurite<br/>━━━━━━━━<br/>Azure Blob compatible<br/>Camera snapshots<br/>Media storage<br/><i>Phase 2</i>")]
+    end
+  end
 
-  %% UI Analytics read path
-  MVC -->|read query| DB
-  META -->|read query| DB
+  %% ==============================================
+  %% CONNECTIONS - Data Sources to Ingestion
+  %% ==============================================
+  OS -->|"HTTP GET<br/>JSON"| GP
+  SC -->|"HTTP GET<br/>JSON"| GP
+  USGS -->|"HTTP GET<br/>JSON"| GP
 
-  %% Observability
-  GP -->|metrics| PROM
-  IC -->|metrics| PROM
-  PGX --> PROM
-  RMQX --> PROM
-  CAD --> PROM
-  PROM --> GRAF
-
-  %% Exporter connections
+  %% ==============================================
+  %% CONNECTIONS - Ingestion to Observability
+  %% ==============================================
+  GP -.->|"/metrics endpoint"| PROM
+  IC -.->|"/metrics endpoint"| PROM
+  MQ -.->|"built-in /metrics"| PROM
   DB --> PGX
-  MQ --> RMQX
+  GP -.->|"Serilog logs"| LOKI
+  IC -.->|"Serilog logs"| LOKI
 
-  %% Phase 2: blobs
-  GP -.->|store blob optional| AZ
-  IC -.->|store blobRef checksum| DB
+  %% ==============================================
+  %% CONNECTIONS - Storage to Client Area
+  %% ==============================================
+  DB -->|"read queries"| MVC
+  DB -->|"read queries"| META
+
+  %% ==============================================
+  %% CONNECTIONS - Phase 2 Future
+  %% ==============================================
+  GP -.->|"store blobs<br/><i>Phase 2</i>"| AZ
+  IC -.->|"blobRef metadata<br/><i>Phase 2</i>"| DB
+
+  %% ==============================================
+  %% STYLING - Color-coded by functional area
+  %% ==============================================
+  
+  %% Data Sources - Blue
+  classDef dataSource fill:#0288d1,stroke:#01579b,stroke-width:3px,color:#fff
+  class OS,SC,USGS dataSource
+  
+  %% Ingestion - Green
+  classDef ingestion fill:#2e7d32,stroke:#1b5e20,stroke-width:3px,color:#fff
+  class GP,MQ,IC,DB ingestion
+  
+  %% Observability - Purple
+  classDef observability fill:#7c3aed,stroke:#5b21b6,stroke-width:3px,color:#fff
+  class PGX,NEX,PROM,LOKI,GRAF observability
+  
+  %% Client Area - Orange
+  classDef client fill:#f57c00,stroke:#e65100,stroke-width:3px,color:#fff
+  class MVC,META client
+  
+  %% Future/Phase 2 - Gray (dashed)
+  classDef future fill:#616161,stroke:#424242,stroke-width:2px,stroke-dasharray:5 5,color:#fff
+  class AZ future
+  
+  %% Subgraph styling
+  classDef subgraphStyle fill:#1e1e1e,stroke:#666,stroke-width:2px,color:#fff
+  class EXT,INGEST,OBS,CLIENT subgraphStyle
+

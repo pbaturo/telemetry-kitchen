@@ -17,3 +17,27 @@ scrape_configs:
         labels:
           service: 'gateway-poller'
           component: 'poller'
+
+  - job_name: 'postgres'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgresql'
+          component: 'database'
+
+  - job_name: 'rabbitmq'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'
+          component: 'message-broker'
+
+  - job_name: 'node'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          component: 'system'

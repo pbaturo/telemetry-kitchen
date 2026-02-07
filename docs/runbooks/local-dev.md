@@ -1,10 +1,19 @@
 # Local Development Runbook
 
+**Purpose:** Technical setup guide for developers working on Telemetry Kitchen  
+**Target Audience:** Software Engineers, Contributors  
+**Related Documentation:**  
+- 📘 **[Operators Manual](../OPERATORS-MANUAL.md)** — Day-to-day operations (Grafana, logs, troubleshooting)  
+- 📙 **[Architecture Overview](../architecture/overview.md)** — System design and rationale
+
+---
+
 ## Prerequisites
 
 - .NET 9.0 SDK
-- Docker Desktop
+- Docker Desktop (with Docker Compose)
 - PostgreSQL client (optional, for manual queries)
+- PowerShell (Windows) or Bash (Linux/Mac)
 
 ## Quick Start
 
@@ -217,10 +226,44 @@ FROM pg_indexes
 WHERE tablename = 'sensor_events';
 ```
 
+---
+
+## Operational Tasks
+
+For day-to-day operations, monitoring, and troubleshooting, see the **[Operators Manual](../OPERATORS-MANUAL.md)**, which covers:
+
+- ✅ **Using Grafana** — Dashboards, metrics, exploration
+- ✅ **Using PGAdmin** — Database queries, performance monitoring
+- ✅ **Viewing Logs** — Loki queries, Docker logs, log analysis
+- ✅ **Monitoring HTTP Sensors** — External API health, polling status
+- ✅ **Operating RabbitMQ** — Queue management, message inspection
+- ✅ **Troubleshooting** — Common scenarios, performance baselines
+
+---
+
 ## Next Steps
 
-After verifying Scenario 1 baseline:
-1. Add RabbitMQ durability gate (Phase 1.1)
-2. Implement Ingest.Consumer (Phase 1.2)
-3. Add Grafana dashboards for observability (Phase 1.3)
-4. Implement Web.Mvc read-only UI (Phase 1.4)
+**Phase 1 Complete!** ✅
+
+Current system includes:
+- ✅ Gateway.Poller polling real sensors
+- ✅ RabbitMQ durability gate
+- ✅ Ingest.Consumer with idempotency
+- ✅ PostgreSQL with 100k seed data
+- ✅ Grafana dashboards (Operational + Sensor Overview)
+- ✅ Loki centralized logging
+- ✅ Full observability stack (Prometheus + exporters)
+
+**Phase 2 — Coming Soon:**
+1. Web.Mvc read-only UI (sensor status, history views)
+2. Metabase analytics integration
+3. Additional external APIs (USGS, Sensor.Community)
+4. Azurite object storage for media files
+
+**Performance Evolution:**
+1. Measure baseline performance with current naive schema
+2. Identify bottlenecks using Grafana dashboards
+3. Optimize (indexing, partitioning, caching)
+4. Re-measure and compare results
+
+**Philosophy:** Start naive → measure → improve → compare ✨
