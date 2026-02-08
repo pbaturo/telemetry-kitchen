@@ -217,8 +217,14 @@ services:
 
 volumes:
   tk_pgdata:
+    name: tk_pgdata
   tk_promdata:
+    name: tk_promdata
   tk_grafanadata:
+    name: tk_grafanadata
   tk_rabbitmq_data:
+    name: tk_rabbitmq_data
   tk_loki_data:
+    name: tk_loki_data
   tk_metabase_data:
+    name: tk_metabase_data
