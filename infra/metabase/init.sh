@@ -1,75 +1,85 @@
 #!/bin/bash
 set -e
 
-echo "⏳ Waiting for Metabase to be ready..."
+METABASE_HOST=${METABASE_HOST:-metabase}
+METABASE_PORT=${METABASE_PORT:-3000}
+METABASE_URL="http://${METABASE_HOST}:${METABASE_PORT}"
+
+ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-TelemetryKitchen2026!}
+ADMIN_FIRST_NAME=${ADMIN_FIRST_NAME:-Admin}
+ADMIN_LAST_NAME=${ADMIN_LAST_NAME:-Administrator}
+
+DB_HOST=${DB_HOST:-postgres}
+DB_PORT=${DB_PORT:-5432}
+DB_NAME=${DB_NAME:-telemetry_kitchen}
+DB_USER=${DB_USER:-tk}
+DB_PASSWORD=${DB_PASSWORD:-tk}
+
+echo "Waiting for Metabase to be ready..."
 for i in {1..60}; do
-  if curl -s http://metabase:3000/api/health > /dev/null 2>&1; then
-    echo "✅ Metabase is ready!"
+  if curl -s "${METABASE_URL}/api/health" > /dev/null 2>&1; then
+    echo "Metabase is ready."
     break
   fi
-  echo "  Attempt $i/60..."
+  echo "  Attempt ${i}/60..."
   sleep 2
 done
 
 sleep 3
 
 echo ""
-echo "🔧 Starting Metabase auto-setup..."
+echo "Starting Metabase auto-setup..."
 
-# Get the setup token from the page (it's embedded in the HTML)
-# Since we can't easily extract it, we'll try the setup endpoint with a reasonable approach
+PROPS=$(curl -s "${METABASE_URL}/api/session/properties" || true)
+SETUP_TOKEN=$(echo "$PROPS" | grep -o 'setup-token":"[^"]*' | head -1 | cut -d'"' -f3)
 
-# First, check if already set up (if this fails, setup is needed)
-HEALTH=$(curl -s http://metabase:3000/api/user/current -H "X-Metabase-Session: test" 2>/dev/null || echo "")
+if [ -z "$SETUP_TOKEN" ]; then
+  echo "Metabase is already configured (no setup token present)."
+  echo "Initialization complete, exiting."
+  exit 0
+fi
 
-if echo "$HEALTH" | grep -q "unauthorized"; then
-  echo "✅ Metabase needs setup (no session yet) - proceeding..."
-  
-  # Call setup with password that meets requirements (>6 chars, not common)
-  SETUP_RESULT=$(curl -s -X POST http://metabase:3000/api/setup \
-    -H "Content-Type: application/json" \
-    -d '{
-      "token": "",
-      "user": {
-        "first_name": "Admin",
-        "last_name": "Administrator",
-        "email": "admin@example.com",
-        "password": "TelemetryKitchen2026!"
-      },
-      "database": {
-        "name": "Telemetry Kitchen",
-        "engine": "postgres",
-        "details": {
-          "host": "postgres",
-          "port": 5432,
-          "dbname": "telemetry_kitchen",
-          "user": "tk",
-          "password": "tk",
-          "ssl": false,
-          "tunnel-enabled": false
-        }
-      },
-      "prefs": {
-        "site_name": "Telemetry Kitchen",
-        "site_locale": "en"
+SETUP_RESULT=$(curl -s -X POST "${METABASE_URL}/api/setup" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "'"${SETUP_TOKEN}"'",
+    "user": {
+      "first_name": "'"${ADMIN_FIRST_NAME}"'",
+      "last_name": "'"${ADMIN_LAST_NAME}"'",
+      "email": "'"${ADMIN_EMAIL}"'",
+      "password": "'"${ADMIN_PASSWORD}"'"
+    },
+    "database": {
+      "name": "Telemetry Kitchen",
+      "engine": "postgres",
+      "details": {
+        "host": "'"${DB_HOST}"'",
+        "port": '"${DB_PORT}"',
+        "dbname": "'"${DB_NAME}"'",
+        "user": "'"${DB_USER}"'",
+        "password": "'"${DB_PASSWORD}"'",
+        "ssl": false,
+        "tunnel-enabled": false
       }
-    }' 2>&1)
-  
-  if echo "$SETUP_RESULT" | grep -q '"id"'; then
-    echo "✅ Setup completed successfully!"
-    echo ""
-    echo "🎉 Metabase is ready:"
-    echo "   📍 http://localhost:3001"
-    echo "   👤 Email: admin@example.com"
-    echo "   🔑 Password: TelemetryKitchen2026!"
-    echo "   🗄️  Database: Telemetry Kitchen (PostgreSQL)"
-  else
-    echo "⚠️  Setup response:"
-    echo "$SETUP_RESULT"
-  fi
+    },
+    "prefs": {
+      "site_name": "Telemetry Kitchen",
+      "site_locale": "en"
+    }
+  }' 2>&1)
+
+if echo "$SETUP_RESULT" | grep -Eq '"id"|"status"[[:space:]]*:[[:space:]]*"ok"'; then
+  echo "Setup completed successfully."
+  echo ""
+  echo "Metabase is ready: http://localhost:3001"
+  echo "Login: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}"
+  echo "Database: Telemetry Kitchen (PostgreSQL)"
 else
-  echo "✅ Metabase is already configured"
+  echo "Setup failed. Response:"
+  echo "$SETUP_RESULT"
+  exit 1
 fi
 
 echo ""
-echo "✅ Initialization complete, exiting..."
+echo "Initialization complete, exiting."
