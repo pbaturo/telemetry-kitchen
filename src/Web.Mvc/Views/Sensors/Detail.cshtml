@@ -50,27 +50,36 @@
                         {
                             var (emoji, description, unit_description) = measurement.Name.ToLower() switch
                             {
+                                // Standard English patterns
                                 var n when n.Contains("temp") && n.Contains("internal") => ("🌡️", "Internal Temperature", "Celsius (°C) - Temperature inside the sensor device"),
                                 var n when n.Contains("temp") => ("🌡️", "Ambient Temperature", "Celsius (°C) - Air temperature in the environment"),
-                                var n when n.Contains("humidity") => ("💧", "Relative Humidity", "Percentage (%) - Amount of water vapor in air (0-100%)"),
+                                var n when n.Contains("humidity") || n.Contains("luftfeuchte") => ("💧", "Relative Humidity", "Percentage (%) - Amount of water vapor in air (0-100%)"),
                                 var n when n.Contains("pressure") && n.Contains("absolute") => ("🔽", "Absolute Pressure", "Hectopascals (hPa) - Atmospheric pressure at sensor elevation"),
-                                var n when n.Contains("pressure") => ("🔽", "Atmospheric Pressure", "Hectopascals (hPa) - Air pressure at sea level equivalent"),
-                                var n when n.Contains("pm2.5") || n.Contains("pm25") => ("🫁", "Particulate Matter 2.5μm", "Micrograms/m³ (µg/m³) - Fine dust particles ≤2.5 micrometers"),
+                                var n when n.Contains("pressure") || n.Contains("luftdruck") => ("🔽", "Atmospheric Pressure", "Hectopascals (hPa) - Air pressure at sea level equivalent"),
+                                var n when n.Contains("pm2.5") || n.Contains("pm25") || n.Contains("feinstaub pm2") => ("🫁", "Particulate Matter 2.5μm", "Micrograms/m³ (µg/m³) - Fine dust particles ≤2.5 micrometers"),
                                 var n when n.Contains("pm10") => ("💨", "Particulate Matter 10μm", "Micrograms/m³ (µg/m³) - Coarse dust particles ≤10 micrometers"),
                                 var n when n.Contains("pm1") => ("🌫️", "Particulate Matter 1μm", "Micrograms/m³ (µg/m³) - Ultra-fine dust particles ≤1 micrometer"),
                                 var n when n.Contains("co2") => ("🏭", "Carbon Dioxide", "Parts per Million (ppm) - CO₂ concentration in air (400-1000 typical)"),
                                 var n when n.Contains("voc") => ("🧪", "Volatile Organic Compounds", "Index Value - Air quality indicator (higher = worse)"),
-                                var n when n.Contains("wind") && n.Contains("speed") => ("💨", "Wind Speed", "Kilometers/hour (km/h) or Meters/second (m/s) - Horizontal air movement"),
-                                var n when n.Contains("wind") && n.Contains("direction") => ("🧭", "Wind Direction", "Degrees (°) - Direction FROM which wind blows (0°=N, 90°=E)"),
-                                var n when n.Contains("rain") || n.Contains("precipitation") => ("🌧️", "Precipitation", "Millimeters (mm) - Rainfall accumulated over period"),
+                                var n when n.Contains("wind") && (n.Contains("speed") || n.Contains("geschwindigkeit")) => ("💨", "Wind Speed", "Meters/second (m/s) or Kilometers/hour (km/h) - Horizontal air movement velocity"),
+                                var n when n.Contains("wind") && (n.Contains("direction") || n.Contains("richtung")) => ("🧭", "Wind Direction", "Degrees (°) - Direction FROM which wind blows (0°=N, 90°=E, 180°=S, 270°=W)"),
+                                var n when n.Contains("rain") || n.Contains("precipitation") || n.Contains("regen") => ("🌧️", "Precipitation", "Millimeters (mm) - Rainfall accumulated over measurement period"),
                                 var n when n.Contains("solar") || n.Contains("radiation") => ("☀️", "Solar Radiation", "Watts/m² (W/m²) - Direct solar energy received"),
                                 var n when n.Contains("uv") => ("☀️", "UV Index", "Index Value (0-11+) - Ultraviolet radiation intensity"),
-                                var n when n.Contains("light") || n.Contains("lux") => ("💡", "Light Intensity", "Lux (lx) - Visible light illuminance"),
+                                var n when n.Contains("light") || n.Contains("lux") || n.Contains("beleuchtung") => ("💡", "Light Intensity", "Lux (lx) - Visible light illuminance or brightness"),
                                 var n when n.Contains("battery") => ("🔋", "Battery Level", "Percentage (%) - Power remaining in sensor battery"),
-                                var n when n.Contains("power") => ("🔋", "Power Supply", "Volts (V) - Electrical voltage to sensor"),
-                                var n when n.Contains("groundwater") || n.Contains("water") && n.Contains("level") => ("🌊", "Water Level", "Meters (m) - Height of water surface"),
+                                var n when n.Contains("power") || n.Contains("leistung") => ("⚡", "Power Output", "Watts (W) or Watt-hours (Wh) - Electrical power generation or consumption"),
+                                var n when n.Contains("groundwater") || n.Contains("grundwasser") => ("🌊", "Groundwater Level", "Centimeters (cm) or Meters (m) - Height of water table below surface"),
+                                var n when n.Contains("water") && n.Contains("level") => ("🌊", "Water Level", "Centimeters (cm) or Meters (m) - Height of water surface"),
                                 var n when n.Contains("noise") || n.Contains("sound") => ("🔊", "Sound Level", "Decibels (dB) - Acoustic noise intensity"),
                                 var n when n.Contains("altitude") || n.Contains("elevation") => ("⛰️", "Altitude/Elevation", "Meters (m) - Height above mean sea level"),
+                                // German/Special measurement types
+                                var n when n.Contains("dämmerung") => ("🌅", "Twilight Light Level", "Lux (lx) - Ambient light during twilight/dusk period"),
+                                var n when n.Contains("licht sonne") && n.Contains("ost") => ("☀️", "Solar Light - East", "Kilolux (kLx) - Solar irradiance from eastern direction"),
+                                var n when n.Contains("licht sonne") && n.Contains("süd") => ("☀️", "Solar Light - South", "Kilolux (kLx) - Solar irradiance from southern direction"),
+                                var n when n.Contains("licht sonne") && n.Contains("west") => ("☀️", "Solar Light - West", "Kilolux (kLx) - Solar irradiance from western direction"),
+                                var n when n.Contains("tagesleistung") => ("📊", "Daily Energy Production", "Watt-hours (Wh) - Total electrical energy generated per day"),
+                                var n when n.Contains("leistungaktuell") => ("⚡", "Current Power Output", "Watts (W) - Real-time electrical power being generated"),
                                 _ => ("📏", measurement.Name, measurement.Unit ?? "Unknown unit")
                             };
 
