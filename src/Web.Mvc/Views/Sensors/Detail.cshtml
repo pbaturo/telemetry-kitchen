@@ -48,41 +48,45 @@
                     <div class="row g-3">
                         @foreach (var measurement in Model.LatestMeasurements)
                         {
-                            var emoji = measurement.Name.ToLower() switch
+                            var (emoji, description, unit_description) = measurement.Name.ToLower() switch
                             {
-                                var n when n.Contains("temp") => "🌡️",
-                                var n when n.Contains("humidity") => "💧",
-                                var n when n.Contains("pressure") => "🔽",
-                                var n when n.Contains("pm2.5") || n.Contains("pm25") => "🫁",
-                                var n when n.Contains("pm10") => "💨",
-                                var n when n.Contains("pm1") => "🌫️",
-                                var n when n.Contains("co2") => "🏭",
-                                var n when n.Contains("voc") => "🧪",
-                                var n when n.Contains("wind") && n.Contains("speed") => "💨",
-                                var n when n.Contains("wind") && n.Contains("direction") => "🧭",
-                                var n when n.Contains("rain") || n.Contains("precipitation") => "🌧️",
-                                var n when n.Contains("solar") || n.Contains("radiation") => "☀️",
-                                var n when n.Contains("uv") => "☀️",
-                                var n when n.Contains("light") || n.Contains("lux") => "💡",
-                                var n when n.Contains("battery") || n.Contains("power") => "🔋",
-                                var n when n.Contains("groundwater") || n.Contains("water") && n.Contains("level") => "🌊",
-                                var n when n.Contains("noise") || n.Contains("sound") => "🔊",
-                                var n when n.Contains("altitude") || n.Contains("elevation") => "⛰️",
-                                _ => "📏"
+                                var n when n.Contains("temp") && n.Contains("internal") => ("🌡️", "Internal Temperature", "Celsius (°C) - Temperature inside the sensor device"),
+                                var n when n.Contains("temp") => ("🌡️", "Ambient Temperature", "Celsius (°C) - Air temperature in the environment"),
+                                var n when n.Contains("humidity") => ("💧", "Relative Humidity", "Percentage (%) - Amount of water vapor in air (0-100%)"),
+                                var n when n.Contains("pressure") && n.Contains("absolute") => ("🔽", "Absolute Pressure", "Hectopascals (hPa) - Atmospheric pressure at sensor elevation"),
+                                var n when n.Contains("pressure") => ("🔽", "Atmospheric Pressure", "Hectopascals (hPa) - Air pressure at sea level equivalent"),
+                                var n when n.Contains("pm2.5") || n.Contains("pm25") => ("🫁", "Particulate Matter 2.5μm", "Micrograms/m³ (µg/m³) - Fine dust particles ≤2.5 micrometers"),
+                                var n when n.Contains("pm10") => ("💨", "Particulate Matter 10μm", "Micrograms/m³ (µg/m³) - Coarse dust particles ≤10 micrometers"),
+                                var n when n.Contains("pm1") => ("🌫️", "Particulate Matter 1μm", "Micrograms/m³ (µg/m³) - Ultra-fine dust particles ≤1 micrometer"),
+                                var n when n.Contains("co2") => ("🏭", "Carbon Dioxide", "Parts per Million (ppm) - CO₂ concentration in air (400-1000 typical)"),
+                                var n when n.Contains("voc") => ("🧪", "Volatile Organic Compounds", "Index Value - Air quality indicator (higher = worse)"),
+                                var n when n.Contains("wind") && n.Contains("speed") => ("💨", "Wind Speed", "Kilometers/hour (km/h) or Meters/second (m/s) - Horizontal air movement"),
+                                var n when n.Contains("wind") && n.Contains("direction") => ("🧭", "Wind Direction", "Degrees (°) - Direction FROM which wind blows (0°=N, 90°=E)"),
+                                var n when n.Contains("rain") || n.Contains("precipitation") => ("🌧️", "Precipitation", "Millimeters (mm) - Rainfall accumulated over period"),
+                                var n when n.Contains("solar") || n.Contains("radiation") => ("☀️", "Solar Radiation", "Watts/m² (W/m²) - Direct solar energy received"),
+                                var n when n.Contains("uv") => ("☀️", "UV Index", "Index Value (0-11+) - Ultraviolet radiation intensity"),
+                                var n when n.Contains("light") || n.Contains("lux") => ("💡", "Light Intensity", "Lux (lx) - Visible light illuminance"),
+                                var n when n.Contains("battery") => ("🔋", "Battery Level", "Percentage (%) - Power remaining in sensor battery"),
+                                var n when n.Contains("power") => ("🔋", "Power Supply", "Volts (V) - Electrical voltage to sensor"),
+                                var n when n.Contains("groundwater") || n.Contains("water") && n.Contains("level") => ("🌊", "Water Level", "Meters (m) - Height of water surface"),
+                                var n when n.Contains("noise") || n.Contains("sound") => ("🔊", "Sound Level", "Decibels (dB) - Acoustic noise intensity"),
+                                var n when n.Contains("altitude") || n.Contains("elevation") => ("⛰️", "Altitude/Elevation", "Meters (m) - Height above mean sea level"),
+                                _ => ("📏", measurement.Name, measurement.Unit ?? "Unknown unit")
                             };
 
                             <div class="col-md-4 col-sm-6">
                                 <div class="d-flex align-items-start">
-                                    <div class="me-2" style="font-size: 1.5rem;">@emoji</div>
-                                    <div>
-                                        <small class="text-muted d-block">@measurement.Name</small>
+                                    <div class="me-2" style="font-size: 1.5rem;" title="@unit_description" data-bs-toggle="tooltip">@emoji</div>
+                                    <div style="flex: 1;">
+                                        <small class="text-muted d-block" title="@unit_description" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">@description</small>
                                         <strong class="d-block">
                                             @measurement.Value
                                             @if (!string.IsNullOrEmpty(measurement.Unit))
                                             {
-                                                <span class="text-muted">@measurement.Unit</span>
+                                                <span class="text-muted" title="@unit_description" data-bs-toggle="tooltip" style="cursor: help;">@measurement.Unit</span>
                                             }
                                         </strong>
+                                        <small class="text-muted" style="font-size: 0.75rem;">@unit_description</small>
                                     </div>
                                 </div>
                             </div>
@@ -91,61 +95,90 @@
                 }
                 else
                 {
-                    <p class="text-muted mb-0">No measurements available yet</p>
+                    <p class="text-muted mb-0">⏳ No measurements available yet - sensor may be initializing</p>
                 }
             </div>
         </div>
 
         <div class="card mb-4">
             <div class="card-header bg-light">
-                <h5 class="mb-0">Sensor Information</h5>
+                <h5 class="mb-0">ℹ️ Sensor Information</h5>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong>Sensor ID</strong>
+                        <strong title="Unique identifier for this sensor" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">🆔 Sensor ID</strong>
                         <p class="text-monospace text-muted">@Model.SensorId</p>
+                        <small class="text-muted">Unique identifier assigned to this sensor</small>
                     </div>
                     <div class="col-md-6">
-                        <strong>Source Type</strong>
-                        <p>@Model.SourceType</p>
+                        <strong title="Where this sensor data comes from" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📡 Data Source</strong>
+                        <p>
+                            @{
+                                var sourceEmoji = Model.SourceType.ToLower() switch
+                                {
+                                    "opensensemap" => "🗺️ OpenSenseMap",
+                                    "public-environment" => "🌍 OpenSenseMap (Public)",
+                                    "sensor-community" => "👥 Sensor.Community Network",
+                                    "seed" => "🌱 Synthetic/Test",
+                                    "synthetic-lab" => "🧪 Laboratory Synthetic",
+                                    _ => Model.SourceType
+                                };
+                            }
+                            @sourceEmoji
+                        </p>
+                        <small class="text-muted">Source network or API providing this sensor's data</small>
                     </div>
                 </div>
                 @if (Model.Lat.HasValue && Model.Lon.HasValue)
                 {
                     <div class="row">
                         <div class="col-md-6">
-                            <strong>Latitude</strong>
+                            <strong title="North-South position on Earth" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📍 Latitude</strong>
                             <p>@Model.Lat?.ToString("F6")</p>
+                            <small class="text-muted">North-South position (-90°S to +90°N), decimal degrees</small>
                         </div>
                         <div class="col-md-6">
-                            <strong>Longitude</strong>
+                            <strong title="East-West position on Earth" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📍 Longitude</strong>
                             <p>@Model.Lon?.ToString("F6")</p>
+                            <small class="text-muted">East-West position (-180°W to +180°E), decimal degrees</small>
                         </div>
                     </div>
                 }
+                <div class="row mt-3 pt-3 border-top">
+                    <div class="col-md-6">
+                        <strong title="When this sensor was first registered in our system" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📅 Since</strong>
+                        <p>@Model.CreatedAt.ToString("g")</p>
+                        <small class="text-muted">Date/time sensor was first added</small>
+                    </div>
+                    <div class="col-md-6">
+                        <strong title="Total number of measurements collected from this sensor" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📊 Total Events</strong>
+                        <p>@Model.TotalEventCount.ToString("N0")</p>
+                        <small class="text-muted">Total number of data reports received</small>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="card">
             <div class="card-header bg-light">
-                <h5 class="mb-0">Recent Events (Last 50)</h5>
+                <h5 class="mb-0">📋 Recent Data Reports (Last 50 Events)</h5>
             </div>
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Time</th>
-                            <th>Status</th>
-                            <th>Message</th>
-                            <th>Measurements</th>
+                            <th>⏰ Time Observed</th>
+                            <th title="SUCCESS=Data valid | WARNING=Data questionable | ERROR=Collection failed" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📊 Status</th>
+                            <th title="Details about what happened during data collection" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📝 Details</th>
+                            <th title="Number of measurements in this report" data-bs-toggle="tooltip" style="cursor: help; border-bottom: 1px dotted #999;">📈 Measurements</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (!Model.RecentEvents.Any())
                         {
                             <tr>
-                                <td colspan="4" class="text-center text-muted py-4">No events yet</td>
+                                <td colspan="4" class="text-center text-muted py-4">⏳ No events yet</td>
                             </tr>
                         }
                         else
@@ -158,27 +191,27 @@
                                     </td>
                                     <td>
                                         @{
-                                            var statusClass = evt.StatusLevel switch
+                                            var (statusBadge, statusDescription) = evt.StatusLevel switch
                                             {
-                                                "ERROR" => "danger",
-                                                "WARN" => "warning",
-                                                "INFO" => "success",
-                                                _ => "secondary"
+                                                "ERROR" => ("danger", "🔴 Data collection FAILED - sensor may be offline or API unreachable"),
+                                                "WARN" => ("warning", "🟡 Data QUESTIONABLE - sensor returned partial/invalid data"),
+                                                "INFO" => ("success", "🟢 Data OK - successfully collected valid measurements"),
+                                                _ => ("secondary", "⚪ UNKNOWN status")
                                             };
                                         }
-                                        <span class="badge bg-@statusClass">@evt.StatusLevel</span>
+                                        <span class="badge bg-@statusBadge" title="@statusDescription" data-bs-toggle="tooltip" style="cursor: help;">@evt.StatusLevel</span>
                                     </td>
                                     <td>
-                                        <small>@evt.StatusMessage</small>
+                                        <small>@(string.IsNullOrWhiteSpace(evt.StatusMessage) ? "—" : evt.StatusMessage)</small>
                                     </td>
                                     <td>
                                         @if (evt.Measurements.Any())
                                         {
                                             <small>
-                                                @string.Join(", ", evt.Measurements.Take(2).Select(m => $"{m.Key}={m.Value}"))
+                                                @string.Join(", ", evt.Measurements.Take(2).Select(m => $"{m.Key}"))
                                                 @if (evt.Measurements.Count > 2)
                                                 {
-                                                    <text>...</text>
+                                                    <text>... (+@(evt.Measurements.Count - 2) more)</text>
                                                 }
                                             </small>
                                         }
@@ -238,7 +271,13 @@
     }
 
     <script>
-        // Auto-refresh every 30 seconds
+        // Initialize Bootstrap tooltips for all elements with data-bs-toggle="tooltip"
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(e => new bootstrap.Tooltip(e));
+        });
+
+        // Auto-refresh every 30 seconds to show latest data
         setTimeout(() => location.reload(), 30000);
     </script>
 }
