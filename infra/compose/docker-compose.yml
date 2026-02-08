@@ -80,11 +80,10 @@ services:
     ports:
       - "3001:3000"
     environment:
-      # Use embedded H2 database for Metabase metadata (not the telemetry data)
+      # Use embedded H2 database for Metabase metadata
       MB_DB_TYPE: h2
-      # Connect to PostgreSQL as a data source for telemetry queries
-      MB_ADMIN_EMAIL: admin@example.com
-      MB_ADMIN_PASSWORD: admin
+      # Performance
+      MB_JAVA_TOOL_OPTIONS: "-Xmx512M -Xms256M"
     volumes:
       - tk_metabase_data:/metabase-data
     depends_on:
@@ -96,6 +95,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  metabase-init:
+    image: curlimages/curl:latest
+    container_name: tk-metabase-init
+    depends_on:
+      metabase:
+        condition: service_healthy
+    environment:
+      METABASE_HOST: metabase
+      METABASE_PORT: 3000
+    volumes:
+      - ../metabase/init.sh:/init.sh:ro
+    entrypoint: /bin/sh
+    command: /init.sh
+    restart: "no"
 
   rabbitmq:
     image: rabbitmq:3.13-management
