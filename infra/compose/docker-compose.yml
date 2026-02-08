@@ -98,7 +98,7 @@ services:
 
   metabase-init:
     image: curlimages/curl:latest
-      container_name: tk-metabase-init
+    container_name: tk-metabase-init
     depends_on:
       metabase:
         condition: service_healthy
