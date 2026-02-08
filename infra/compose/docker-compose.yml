@@ -98,7 +98,7 @@ services:
 
   metabase-init:
     image: curlimages/curl:latest
-    container_name: tk-metabase-init
+      container_name: tk-metabase-init
     depends_on:
       metabase:
         condition: service_healthy
@@ -138,6 +138,7 @@ services:
     build:
       context: ../../src
       dockerfile: Gateway.Poller/Dockerfile
+    image: telemetry-kitchen-gateway-poller:latest
     container_name: tk-gateway-poller
     environment:
       DOTNET_ENVIRONMENT: Development
@@ -158,6 +159,7 @@ services:
     build:
       context: ../../src
       dockerfile: Ingest.Consumer/Dockerfile
+    image: telemetry-kitchen-ingest-consumer:latest
     container_name: tk-ingest-consumer
     environment:
       DOTNET_ENVIRONMENT: Development
@@ -192,6 +194,7 @@ services:
     build:
       context: ../../src
       dockerfile: Web.Mvc/Dockerfile
+    image: telemetry-kitchen-web-mvc:latest
     container_name: tk-web-mvc
     ports:
       - "5000:5000"
