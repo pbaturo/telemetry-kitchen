@@ -359,6 +359,575 @@ histogram_quantile(0.95, sum(rate(tk_db_write_duration_ms_bucket[5m])) by (le))
 
 ---
 
+## 🗄️ PostgreSQL Database Metrics
+
+### Connection Health
+
+#### Total Connections
+```promql
+sum(pg_stat_activity_count{datname="telemetry_kitchen"})
+```
+**Purpose:** Current active connections to database  
+**Use Case:** Monitor connection pool usage  
+**Expected Value:** < 100 (default max_connections)  
+
+#### Connection Usage Percentage
+```promql
+100 * (sum(pg_stat_activity_count{datname="telemetry_kitchen"}) / pg_settings_max_connections)
+```
+**Purpose:** Connection pool utilization  
+**Threshold:** Alert if > 85%  
+**Expected Value:** < 70% for healthy headroom  
+
+#### Connections by State
+```promql
+pg_stat_activity_count{datname="telemetry_kitchen"}
+```
+**Purpose:** Breakdown of connections (active, idle, idle in transaction)  
+**Use Case:** Identify connection leaks or long-running queries  
+**Alert:** High `idle in transaction` indicates application issues  
+
+#### Max Connections Limit
+```promql
+pg_settings_max_connections
+```
+**Purpose:** PostgreSQL max_connections setting  
+**Use Case:** Capacity planning reference  
+
+---
+
+### Query Performance & Throughput
+
+#### Transaction Rate (Commits)
+```promql
+rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Successful transactions per second  
+**Use Case:** Monitor database write activity  
+
+#### Transaction Rate (Rollbacks)
+```promql
+rate(pg_stat_database_xact_rollback{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Failed/rolled back transactions per second  
+**Threshold:** Alert if rollback rate > 5% of commit rate  
+
+#### Transactions Per Second (TPS)
+```promql
+rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m]) + 
+rate(pg_stat_database_xact_rollback{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Total transaction throughput  
+**Use Case:** Database load indicator  
+
+#### Tuple Operations (Inserts)
+```promql
+rate(pg_stat_database_tup_inserted{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Row inserts per second  
+**Use Case:** Write load monitoring  
+
+#### Tuple Operations (Updates)
+```promql
+rate(pg_stat_database_tup_updated{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Row updates per second  
+**Use Case:** Update-heavy workload detection  
+
+#### Tuple Operations (Deletes)
+```promql
+rate(pg_stat_database_tup_deleted{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Row deletes per second  
+**Use Case:** Data retention/cleanup monitoring  
+
+#### Tuple Operations (Fetches)
+```promql
+rate(pg_stat_database_tup_fetched{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Rows read per second  
+**Use Case:** Read workload monitoring  
+
+---
+
+### Cache & Memory Efficiency
+
+#### Buffer Cache Hit Ratio
+```promql
+100 * (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) / 
+       (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) + 
+        sum(rate(pg_stat_database_blks_read{datname="telemetry_kitchen"}[5m]))))
+```
+**Purpose:** Percentage of data served from cache vs disk  
+**Threshold:** Alert if < 90% (target: > 95%)  
+**Use Case:** Memory sizing validation  
+
+#### Blocks Read from Disk
+```promql
+rate(pg_stat_database_blks_read{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Disk reads per second (cache misses)  
+**Use Case:** Identify when working set exceeds RAM  
+
+#### Blocks Hit in Cache
+```promql
+rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Cache hits per second  
+**Use Case:** Validate cache effectiveness  
+
+---
+
+### Disk I/O & Storage
+
+#### Database Size
+```promql
+pg_database_size_bytes{datname="telemetry_kitchen"}
+```
+**Purpose:** Total database disk usage  
+**Use Case:** Capacity planning, growth tracking  
+
+#### Database Size (Human Readable)
+```promql
+pg_database_size_bytes{datname="telemetry_kitchen"} / 1024 / 1024 / 1024
+```
+**Purpose:** Database size in GB  
+**Unit:** GB  
+
+#### Database Growth Rate
+```promql
+deriv(pg_database_size_bytes{datname="telemetry_kitchen"}[7d])
+```
+**Purpose:** Growth rate in bytes per day  
+**Use Case:** Forecast disk usage, plan upgrades  
+
+#### Deadlocks
+```promql
+rate(pg_stat_database_deadlocks{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Deadlock occurrences per second  
+**Threshold:** Alert if > 0 (any deadlock is concerning)  
+**Use Case:** Application logic issues, transaction design  
+
+#### Conflicts
+```promql
+rate(pg_stat_database_conflicts{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Query conflicts per second (relevant for hot standby)  
+**Use Case:** Replication health monitoring  
+
+---
+
+### Maintenance & Vacuum Operations
+
+#### Autovacuum Operations
+```promql
+rate(pg_stat_database_tup_autovacuumed{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Tuples cleaned by autovacuum per second  
+**Use Case:** Autovacuum activity verification  
+
+#### Manual Vacuum Operations
+```promql
+rate(pg_stat_database_tup_vacuumed{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Tuples cleaned by manual vacuum per second  
+**Use Case:** Maintenance operation tracking  
+
+#### Analyze Operations
+```promql
+rate(pg_stat_database_tup_analyzed{datname="telemetry_kitchen"}[5m])
+```
+**Purpose:** Tuples analyzed per second  
+**Use Case:** Statistics update frequency  
+
+#### Dead Tuples Ratio
+```promql
+100 * (pg_stat_user_tables_n_dead_tup / 
+       (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup))
+```
+**Purpose:** Percentage of dead tuples (bloat indicator)  
+**Threshold:** Alert if > 10%  
+**Use Case:** Table health, vacuum effectiveness  
+
+---
+
+### Backup & WAL Management
+
+#### WAL Generation Rate
+```promql
+rate(pg_stat_wal_records_total[5m])
+```
+**Purpose:** Write-Ahead-Log records per second  
+**Use Case:** Write activity baseline, replication lag prediction  
+
+---
+
+### Locks & Concurrency
+
+#### Active Locks
+```promql
+sum(pg_locks_count{datname="telemetry_kitchen"})
+```
+**Purpose:** Total active database locks  
+**Threshold:** Alert if > 50 locks  
+**Use Case:** Concurrency bottleneck detection  
+
+#### Lock Wait Time
+```promql
+pg_stat_activity_max_tx_duration{datname="telemetry_kitchen",state="active"}
+```
+**Purpose:** Longest running transaction duration  
+**Threshold:** Alert if > 300 seconds  
+**Use Case:** Long-running query detection  
+
+---
+
+## 💻 OS & Host Performance Metrics (Node Exporter)
+
+### CPU Performance
+
+#### CPU Usage by Mode
+```promql
+100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+```
+**Purpose:** Total CPU usage percentage  
+**Threshold:** Alert if > 90%  
+
+#### CPU User Time
+```promql
+avg(rate(node_cpu_seconds_total{mode="user"}[5m])) * 100
+```
+**Purpose:** CPU time spent in user space  
+**Use Case:** Application CPU usage  
+
+#### CPU System Time
+```promql
+avg(rate(node_cpu_seconds_total{mode="system"}[5m])) * 100
+```
+**Purpose:** CPU time spent in kernel  
+**Use Case:** System call overhead, I/O wait  
+
+#### CPU I/O Wait
+```promql
+avg(rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100
+```
+**Purpose:** CPU time waiting for disk I/O  
+**Threshold:** Alert if > 20%  
+**Use Case:** Disk bottleneck indicator  
+
+#### System Load Average (1 min)
+```promql
+node_load1
+```
+**Purpose:** 1-minute load average  
+**Threshold:** Alert if > number of CPU cores  
+
+#### System Load Average (5 min)
+```promql
+node_load5
+```
+**Purpose:** 5-minute load average  
+**Use Case:** Medium-term load trending  
+
+#### System Load Average (15 min)
+```promql
+node_load15
+```
+**Purpose:** 15-minute load average  
+**Use Case:** Long-term load baseline  
+
+---
+
+### Memory Performance
+
+#### Total Memory
+```promql
+node_memory_MemTotal_bytes
+```
+**Purpose:** Total system RAM  
+**Unit:** Bytes  
+
+#### Memory Available
+```promql
+node_memory_MemAvailable_bytes
+```
+**Purpose:** Available memory for applications  
+**Use Case:** OOM risk assessment  
+
+#### Memory Usage Percentage
+```promql
+100 * (1 - ((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes))
+```
+**Purpose:** Memory utilization  
+**Threshold:** Alert if > 95%  
+
+#### Memory Used
+```promql
+node_memory_MemTotal_bytes - (node_memory_MemAvailable_bytes or node_memory_MemFree_bytes)
+```
+**Purpose:** Actively used memory  
+**Unit:** Bytes  
+
+#### Buffers
+```promql
+node_memory_Buffers_bytes
+```
+**Purpose:** Memory used for file system buffers  
+**Use Case:** Cache efficiency analysis  
+
+#### Cached Memory
+```promql
+node_memory_Cached_bytes
+```
+**Purpose:** Memory used for page cache  
+**Use Case:** File system cache effectiveness  
+
+#### Swap Total
+```promql
+node_memory_SwapTotal_bytes
+```
+**Purpose:** Total swap space configured  
+
+#### Swap Used
+```promql
+node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes
+```
+**Purpose:** Active swap usage  
+**Threshold:** Alert if swap used > 0 (indicates memory pressure)  
+
+#### Swap Usage Percentage
+```promql
+100 * ((node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes)
+```
+**Purpose:** Swap utilization  
+**Threshold:** Alert if > 10%  
+
+---
+
+### Disk I/O Performance
+
+#### Disk IOPS (Reads)
+```promql
+rate(node_disk_reads_completed_total[5m])
+```
+**Purpose:** Read operations per second  
+**Use Case:** Disk read load monitoring  
+
+#### Disk IOPS (Writes)
+```promql
+rate(node_disk_writes_completed_total[5m])
+```
+**Purpose:** Write operations per second  
+**Use Case:** Disk write load monitoring  
+
+#### Disk Read Throughput
+```promql
+rate(node_disk_read_bytes_total[5m]) / 1024 / 1024
+```
+**Purpose:** Disk read MB/s  
+**Unit:** MB/s  
+
+#### Disk Write Throughput
+```promql
+rate(node_disk_written_bytes_total[5m]) / 1024 / 1024
+```
+**Purpose:** Disk write MB/s  
+**Unit:** MB/s  
+
+#### Disk Read Latency
+```promql
+rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m]) * 1000
+```
+**Purpose:** Average read latency in milliseconds  
+**Threshold:** Alert if > 50ms  
+**Use Case:** Disk performance degradation  
+
+#### Disk Write Latency
+```promql
+rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m]) * 1000
+```
+**Purpose:** Average write latency in milliseconds  
+**Threshold:** Alert if > 50ms  
+
+#### Disk Space Used
+```promql
+node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"} - node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"}
+```
+**Purpose:** Used disk space on root filesystem  
+**Unit:** Bytes  
+
+#### Disk Space Usage Percentage
+```promql
+100 * (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}))
+```
+**Purpose:** Disk utilization percentage  
+**Threshold:** Alert if > 90%  
+
+#### Days Until Disk Full (Forecast)
+```promql
+((node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"} * 0.9) - 
+ (node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"} - node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"})) / 
+ (deriv(pg_database_size_bytes{datname="telemetry_kitchen"}[7d]) * 86400)
+```
+**Purpose:** Estimated days until disk reaches 90% full  
+**Threshold:** Alert if < 30 days  
+**Use Case:** Capacity planning  
+
+---
+
+### Network Performance
+
+#### Network Receive Throughput
+```promql
+rate(node_network_receive_bytes_total{device!="lo"}[5m]) / 1024 / 1024
+```
+**Purpose:** Network inbound MB/s  
+**Unit:** MB/s  
+
+#### Network Transmit Throughput
+```promql
+rate(node_network_transmit_bytes_total{device!="lo"}[5m]) / 1024 / 1024
+```
+**Purpose:** Network outbound MB/s  
+**Unit:** MB/s  
+
+#### Network Receive Errors
+```promql
+rate(node_network_receive_errs_total{device!="lo"}[5m])
+```
+**Purpose:** Inbound network errors per second  
+**Threshold:** Alert if > 0  
+
+#### Network Transmit Errors
+```promql
+rate(node_network_transmit_errs_total{device!="lo"}[5m])
+```
+**Purpose:** Outbound network errors per second  
+**Threshold:** Alert if > 0  
+
+#### Network Receive Drops
+```promql
+rate(node_network_receive_drop_total{device!="lo"}[5m])
+```
+**Purpose:** Inbound packet drops per second  
+**Threshold:** Alert if > 10  
+
+#### Network Transmit Drops
+```promql
+rate(node_network_transmit_drop_total{device!="lo"}[5m])
+```
+**Purpose:** Outbound packet drops per second  
+**Threshold:** Alert if > 10  
+
+---
+
+### System Resources & Indicators
+
+#### Context Switches
+```promql
+rate(node_context_switches_total[5m])
+```
+**Purpose:** Context switches per second  
+**Use Case:** System load indicator, excessive switching = performance issue  
+**Threshold:** Alert if > 100000/sec  
+
+#### Interrupts
+```promql
+rate(node_intr_total[5m])
+```
+**Purpose:** Hardware interrupts per second  
+**Use Case:** I/O activity baseline  
+
+#### File Descriptors Used
+```promql
+node_filefd_allocated
+```
+**Purpose:** Open file descriptors  
+**Use Case:** Resource leak detection  
+
+#### File Descriptors Max
+```promql
+node_filefd_maximum
+```
+**Purpose:** Maximum allowed file descriptors  
+**Threshold:** Alert if used > 80% of max  
+
+#### File Descriptor Usage Percentage
+```promql
+100 * (node_filefd_allocated / node_filefd_maximum)
+```
+**Purpose:** File descriptor utilization  
+**Threshold:** Alert if > 80%  
+
+---
+
+## 📈 Capacity Planning Queries
+
+### Resource Headroom
+
+#### Connection Headroom
+```promql
+100 - (100 * (sum(pg_stat_activity_count{datname="telemetry_kitchen"}) / pg_settings_max_connections))
+```
+**Purpose:** Available connection capacity  
+**Target:** > 40% for healthy operation  
+
+#### CPU Headroom
+```promql
+avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100
+```
+**Purpose:** Available CPU capacity  
+**Target:** > 40%  
+
+#### Memory Headroom
+```promql
+100 * ((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes)
+```
+**Purpose:** Available memory capacity  
+**Target:** > 20%  
+
+#### Disk Headroom
+```promql
+(node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}) * 100
+```
+**Purpose:** Available disk capacity  
+**Target:** > 25%  
+
+---
+
+### Long-Term Trends (30-Day Windows)
+
+#### Peak Daily Connections
+```promql
+max_over_time(sum(pg_stat_activity_count{datname="telemetry_kitchen"})[1d:5m])
+```
+**Purpose:** Maximum connections in any 5-minute window per day  
+**Use Case:** Connection pool sizing  
+
+#### Peak Daily CPU Usage
+```promql
+100 - (avg(max_over_time(rate(node_cpu_seconds_total{mode="idle"}[5m])[1d:5m])) * 100)
+```
+**Purpose:** Peak CPU usage per day  
+**Use Case:** Capacity planning  
+
+#### Peak Daily Memory Usage
+```promql
+100 - (100 * min_over_time(((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes)[1d:5m]))
+```
+**Purpose:** Peak memory usage per day  
+**Use Case:** Memory sizing decisions  
+
+#### Average Daily TPS
+```promql
+avg_over_time(rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m])[1d:5m])
+```
+**Purpose:** Average transaction rate per day  
+**Use Case:** Database load trending  
+
+---
+
 ## ⚡ Alert Rules (Recommended)
 
 ### Critical Alerts

@@ -479,7 +479,696 @@ docker restart gateway-poller
 
 ---
 
-## 🔗 Next Steps
+## �️ Step 9: Test PostgreSQL DBA Dashboard
+
+### Access Dashboard
+```
+http://localhost:3000/d/postgresql-dba
+```
+or search for: **"PostgreSQL - DBA & Performance"**
+
+### Key Verifications
+
+#### 🗄️ Database Health Overview Row
+1. **Connection Usage**
+   - Shows percentage of max_connections used
+   - **Green:** < 70%, **Yellow:** 70-85%, **Red:** > 85%
+   - Typical value: 5-20% for dev environment
+
+2. **Cache Hit Ratio**
+   - **Target:** > 95% (green)
+   - **Yellow:** 90-95%, **Red:** < 90%
+   - Low values indicate insufficient memory
+
+3. **Transactions Per Second (TPS)**
+   - Shows transaction throughput
+   - **Green:** < 100, **Yellow:** 100-500, **Red:** > 500
+   - Should correlate with event processing rate
+
+4. **Database Uptime**
+   - Time since PostgreSQL started
+   - Format: Days/hours
+
+5. **Active Locks**
+   - Number of concurrent locks
+   - **Green:** < 10, **Yellow:** 10-50, **Red:** > 50
+   - Spikes may indicate lock contention
+
+6. **Disk Usage**
+   - Database size as % of available disk
+   - **Green:** < 75%, **Yellow:** 75-90%, **Red:** > 90%
+
+#### 📊 Connection & Activity Metrics
+
+**Connections by State:**
+- Shows active, idle, idle_in_transaction connections
+- **Expected:** Most connections should be "idle" between requests
+- **Alert:** Many "idle in transaction" = connection leaks
+
+**Total Connections vs Max:**
+- Line graph showing connection usage over time
+- Red threshold line at max_connections limit
+- Should never reach the max
+
+#### 📊 Query Performance & Throughput
+
+**Transaction Rate:**
+- Commits/sec (green) vs Rollbacks/sec (red)
+- **Healthy:** Rollbacks should be << Commits
+- Spike in rollbacks may indicate application errors
+
+**Database Operations:**
+- Stacked graph: Inserts, Updates, Deletes, Fetches
+- Inserts should be highest for telemetry ingestion workload
+- Pattern should match event processing rate
+
+#### 📊 Cache & Memory Efficiency
+
+**Buffer Cache Hit Ratio:**
+- Should stay > 95%
+- Dips indicate data not in cache (cold start or memory pressure)
+
+**Block Operations:**
+- "Blocks Hit" should be much higher than "Blocks Read"
+- Large "Blocks Read" spikes = cache misses
+
+#### 📊 Disk I/O & Storage
+
+**Database Size Over Time:**
+- Shows growth trend
+- Use for capacity planning
+
+**Deadlocks & Conflicts:**
+- Should be zero or near-zero
+- Any deadlock requires application investigation
+
+#### 📊 Maintenance & Vacuum Operations
+
+**Vacuum Activity:**
+- Shows autovacuum and manual vacuum operations
+- Should see regular autovacuum activity
+- Lack of vacuum = bloat accumulation
+
+**Table Bloat (Dead vs Live Tuples):**
+- Shows ratio of dead to live tuples
+- High dead tuples = tables need vacuuming
+- **Alert:** > 10% dead tuples
+
+#### 📊 Backup & WAL Management
+
+**WAL Generation Rate:**
+- Write-Ahead Log records per second
+- Indicates write intensity
+- Use for replication lag estimation
+
+#### 📋 Top Tables by Size & Activity
+
+**Table Statistics:**
+- Lists largest tables
+- Shows row counts and sizes
+- Use for schema optimization
+
+### Test Scenarios
+
+#### Scenario 1: Normal Operation
+```powershell
+# Generate activity by consuming events
+# Watch dashboard update in real-time
+```
+
+**Expected Results:**
+- Connection usage: 5-20%
+- Cache hit ratio: > 95%
+- TPS: 1-10 transactions/sec
+- Locks: < 10
+- Deadlocks: 0
+
+#### Scenario 2: High Load
+```powershell
+# Restart ingest-consumer to process backlog
+docker restart ingest-consumer
+
+# Watch metrics spike
+```
+
+**Expected Changes:**
+- TPS increases
+- Connections increase temporarily
+- Locks may spike briefly
+- Cache hit ratio should remain > 95%
+
+#### Scenario 3: Connection Pool Monitoring
+```powershell
+# Open multiple connections (simulate leak)
+# Monitor "Connections by State" panel
+```
+
+**Alert Conditions:**
+- Many "idle in transaction" connections
+- Connection usage > 85%
+
+---
+
+## 💻 Step 10: Test OS Performance Monitor Dashboard
+
+### Access Dashboard
+```
+http://localhost:3000/d/postgresql-host-os
+```
+or search for: **"PostgreSQL Host - OS Performance"**
+
+### Key Verifications
+
+#### 💻 System Health Overview Row
+1. **CPU Usage**
+   - Total CPU utilization percentage
+   - **Green:** < 70%, **Yellow:** 70-90%, **Red:** > 90%
+   - Dev environment typically: 5-20%
+
+2. **Memory Usage**
+   - RAM utilization percentage
+   - **Green:** < 80%, **Yellow:** 80-95%, **Red:** > 95%
+   - PostgreSQL will use available memory for cache
+
+3. **Disk Usage**
+   - Root filesystem utilization
+   - **Green:** < 75%, **Yellow:** 75-90%, **Red:** > 90%
+
+4. **Load Average**
+   - 1-minute system load
+   - **Green:** < 2, **Yellow:** 2-4, **Red:** > 4
+   - Compare to number of CPUs
+
+#### 📊 CPU Performance Metrics
+
+**CPU Usage by Mode:**
+- **User:** Application CPU time (expect 5-15%)
+- **System:** Kernel CPU time (expect < 5%)
+- **I/O Wait:** Waiting for disk (expect < 10%, **alert if > 20%**)
+- **Idle:** Unused CPU (expect > 70%)
+
+**System Load Average:**
+- Shows 1, 5, 15 minute load averages
+- Trending upward = increasing system load
+- Load > number of CPUs = potential bottleneck
+
+#### 📊 Memory Performance
+
+**Memory Breakdown:**
+- **Used:** Active memory (PostgreSQL, apps)
+- **Buffers:** File system metadata cache
+- **Cached:** File system data cache  
+- **Available:** Free for new processes
+
+**Expected Pattern:**
+- PostgreSQL uses most available RAM for cache
+- "Cached" should be large (good for DB performance)
+- "Available" should stay > 20% for safety
+
+**Swap Usage:**
+- Should be zero or very low
+- **Alert:** Any swap usage indicates memory pressure
+- PostgreSQL performance degrades with swap
+
+#### 📊 Disk I/O Performance
+
+**Disk IOPS:**
+- Read operations/sec and Write operations/sec
+- PostgreSQL workload: Writes > Reads (WAL, data files)
+- Spikes during vacuum or large inserts
+
+**Disk Throughput:**
+- MB/s for reads and writes
+- Correlates with database activity
+- Sustained high throughput = heavy I/O load
+
+**Disk I/O Latency:**
+- Average read/write latency in milliseconds
+- **Green:** < 10ms, **Yellow:** 10-50ms, **Red:** > 50ms
+- High latency = disk bottleneck (affects DB performance)
+
+**Disk Space Usage:**
+- Shows used vs available disk space
+- Should match "Database Size" from DBA dashboard
+
+#### 📊 Network Performance
+
+**Network Traffic:**
+- Receive/Transmit throughput in MB/s
+- PostgreSQL network I/O (client connections, replication)
+- Spikes during high query activity
+
+**Network Errors & Drops:**
+- Should always be zero
+- Non-zero indicates network hardware issues
+
+#### 📊 System Resources & Indicators
+
+**Context Switches & Interrupts:**
+- **Normal:** 1000-10000 switches/sec
+- **High:** > 100000/sec = performance issue
+- Indicates high concurrency or I/O activity
+
+**File Descriptors Usage:**
+- Open file handles (DB connections, data files)
+- **Alert:** > 80% of maximum
+- PostgreSQL uses many file descriptors
+
+### Test Scenarios
+
+#### Scenario 1: Baseline Monitoring (Idle)
+**Expected Values:**
+- CPU: 5-10% (mostly idle)
+- Memory: 40-60% (PostgreSQL cache)
+- Disk I/O: Very low (< 10 IOPS)
+- Swap: 0%
+- Load Average < 1
+
+#### Scenario 2: Active Database Load
+```powershell
+# Run ingest-consumer to process events
+# Generate database writes
+```
+
+**Expected Changes:**
+- CPU +5-10% (system mode)
+- Disk writes increase (WAL activity)
+- I/O wait may increase slightly
+- Network transmit +1-5 MB/s
+- Load average increases to 1-2
+
+#### Scenario 3: Disk I/O Stress
+```powershell
+# Force database vacuum
+docker exec tk-postgres psql -U postgres -d telemetry_kitchen -c "VACUUM FULL VERBOSE;"
+
+# Watch disk metrics
+```
+
+**Expected Changes:**
+- Disk IOPS spike significantly
+- Disk latency may increase
+- CPU I/O wait increases
+- System load increases
+
+#### Scenario 4: Memory Pressure Detection
+**Check for Swap Usage:**
+```promql
+node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes
+```
+
+**Alert Conditions:**
+- Swap used > 0 (indicates not enough RAM)
+- Memory available < 10% (OOM risk)
+
+---
+
+## 📈 Step 11: Test Capacity Planning Dashboard
+
+### Access Dashboard
+```
+http://localhost:3000/d/postgresql-capacity
+```
+or search for: **"PostgreSQL - Capacity Planning & Trends"**
+
+**Note:** This dashboard shows 30-day trends. In a new environment, some panels may have limited data.
+
+### Key Verifications
+
+#### 📊 Resource Headroom Overview Row
+1. **Connection Headroom**
+   - Remaining connection capacity (100% - usage%)
+   - **Green:** > 40%, **Yellow:** 20-40%, **Red:** < 20%
+   - Use for connection pool sizing decisions
+
+2. **CPU Headroom**
+   - Remaining CPU capacity
+   - **Green:** > 40% available
+   - Lower headroom = consider scaling up
+
+3. **Memory Headroom**
+   - Remaining RAM capacity
+   - **Green:** > 20% available
+   - PostgreSQL benefits from more RAM
+
+4. **Disk Headroom**
+   - Remaining disk space
+   - **Green:** > 40% available
+   - Plan upgrades if < 25%
+
+#### 📈 Database Growth Trends (30 Days)
+
+**Database Size Growth:**
+- Line graph showing total database size over 30 days
+- Use for forecasting future storage needs
+- **New Environment:** May show short-term spike as data populates
+
+**Database Growth Rate:**
+- Shows bytes/day growth rate
+- Helps estimate monthly storage consumption
+- Calculate: GB/month = (growth rate * 30) / 1024^3
+
+**Days Until 90% Disk Full:**
+- Forecast gauge using linear regression
+- **Green:** > 90 days, **Yellow:** 30-90 days, **Red:** < 30 days
+- **New Environment:** May show inaccurate values initially
+
+#### 🔌 Connection Trends
+
+**Peak Connections Trend:**
+- Shows maximum daily connection usage over 30 days
+- Identifies growth in database clients
+- Use for max_connections tuning
+
+**Connection Utilization %:**
+- Trend of connection pool usage
+- Increasing trend = add more connections or connection pooling
+
+#### 🖥️ CPU & Memory Trends
+
+**CPU Peak Usage Trend:**
+- Daily maximum CPU usage over 30 days
+- Identifies if you're approaching CPU limits
+- Steady increase = plan for CPU upgrade
+
+**Memory Peak Usage Trend:**
+- Daily maximum memory usage over 30 days
+- PostgreSQL typically uses all available RAM (good)
+- Approaching 95% with swap usage = add RAM
+
+#### ⚡ Transaction Load Trends
+
+**Transaction Rate Trend:**
+- Shows average and peak TPS over 30 days
+- Identifies traffic patterns and growth
+- Use for scaling decisions
+
+**Database Operations Trend:**
+- Breakdown of inserts, updates, deletes over time
+- Telemetry workload = mostly inserts
+- Pattern changes may indicate schema changes
+
+#### 🔍 Performance Degradation Detection
+
+**Cache Hit Ratio Trend:**
+- Should remain stable above 95%
+- Declining trend = insufficient memory for working set
+- Sudden drops = cold start or schema changes
+
+**Disk I/O Latency Trend:**
+- Monitors if disk performance is degrading
+- Increasing trend = disk aging or saturation
+- Spikes correlate with high I/O operations
+
+### Test Scenarios
+
+#### Scenario 1: Fresh Installation (< 7 Days Data)
+**Expected:**
+- Some panels may show "Insufficient data"
+- Growth forecasts may be inaccurate
+- Trends need 7-30 days to stabilize
+
+**Action:** Revisit dashboard after 7 days of operation
+
+#### Scenario 2: Capacity Planning Review (30+ Days Data)
+**Questions to Answer:**
+1. **When will disk be full?**
+   - Check "Days Until 90% Disk Full" gauge
+   - Verify against database growth graph
+
+2. **Do we need more connections?**
+   - Check peak connection trend
+   - If approaching 70% regularly, increase pool
+
+3. **Is CPU sufficient?**
+   - Check CPU peak usage trend
+   - If regularly > 70%, consider upgrade
+
+4. **Is memory adequate?**
+   - Check cache hit ratio (should stay > 95%)
+   - Check memory peak usage (swap = 0)
+
+5. **Is performance degrading?**
+   - Check disk latency trend (should be flat)
+   - Check cache hit ratio (should be stable)
+
+#### Scenario 3: Growth Forecasting
+```promql
+# Calculate monthly data growth
+(rate(pg_database_size_bytes{datname="telemetry_kitchen"}[30d]) * 86400 * 30) / 1024 / 1024 / 1024
+```
+
+**Use Cases:**
+- Budget planning for storage upgrades
+- When to archive old data
+- Scaling timeline decisions
+
+---
+
+## 🧪 Step 12: Validate PostgreSQL Metrics in Prometheus
+
+### Access Prometheus
+```
+http://localhost:9091/graph
+```
+
+### Test PostgreSQL Exporter Queries
+
+#### Connection Metrics
+```promql
+# Total connections
+sum(pg_stat_activity_count{datname="telemetry_kitchen"})
+
+# Connections by state
+pg_stat_activity_count{datname="telemetry_kitchen"}
+
+# Max connections
+pg_settings_max_connections
+```
+
+**Expected:** Values > 0, multiple states (active, idle)
+
+#### Performance Metrics
+```promql
+# Transaction rate
+rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m])
+
+# Cache hit ratio
+100 * (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) / 
+       (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) + 
+        sum(rate(pg_stat_database_blks_read{datname="telemetry_kitchen"}[5m]))))
+```
+
+**Expected:** TPS > 0 during activity, cache ratio > 90%
+
+#### Database Size
+```promql
+# Size in bytes
+pg_database_size_bytes{datname="telemetry_kitchen"}
+
+# Size in GB
+pg_database_size_bytes{datname="telemetry_kitchen"} / 1024 / 1024 / 1024
+```
+
+**Expected:** Growing value as data is ingested
+
+### Test Node Exporter Queries
+
+#### CPU Metrics
+```promql
+# CPU usage percentage
+100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+
+# I/O wait percentage
+avg(rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100
+
+# Load average
+node_load1
+node_load5
+node_load15
+```
+
+**Expected:** All queries return values
+
+#### Memory Metrics
+```promql
+# Total memory
+node_memory_MemTotal_bytes
+
+# Available memory
+node_memory_MemAvailable_bytes
+
+# Memory usage percentage
+100 * (1 - ((node_memory_MemAvailable_bytes or node_memory_MemFree_bytes) / node_memory_MemTotal_bytes))
+
+# Swap usage
+node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes
+```
+
+**Expected:** Values present, swap usage = 0
+
+#### Disk Metrics
+```promql
+# Disk IOPS
+rate(node_disk_reads_completed_total[5m])
+rate(node_disk_writes_completed_total[5m])
+
+# Disk latency
+rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m]) * 1000
+
+# Disk usage
+100 * (1 - (node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} / 
+            node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}))
+```
+
+**Expected:** All metrics available
+
+---
+
+## 🐛 Troubleshooting PostgreSQL Dashboards
+
+### Problem: PostgreSQL Panels Show "No Data"
+
+**Possible Causes:**
+1. PostgreSQL exporter not running
+2. Prometheus not scraping postgres-exporter
+3. Wrong database name in queries
+
+**Solutions:**
+
+```powershell
+# Check if postgres-exporter is running
+docker ps | Select-String postgres-exporter
+
+# Check postgres-exporter logs
+docker logs postgres-exporter
+
+# Verify exporter is exposing metrics
+Invoke-WebRequest http://localhost:9187/metrics
+
+# Check Prometheus target
+# Visit: http://localhost:9091/targets
+# Look for "postgres-exporter" - should be UP
+```
+
+**Expected postgres-exporter metrics:**
+```
+pg_database_size_bytes
+pg_stat_activity_count
+pg_stat_database_xact_commit
+```
+
+### Problem: OS/Node Panels Show "No Data"
+
+**Possible Causes:**
+1. Node exporter not running
+2. Prometheus not scraping node-exporter
+
+**Solutions:**
+
+```powershell
+# Check if node-exporter is running
+docker ps | Select-String node-exporter
+
+# Check node-exporter logs
+docker logs node-exporter
+
+# Verify exporter is exposing metrics
+Invoke-WebRequest http://localhost:9100/metrics
+
+# Check Prometheus target
+# Visit: http://localhost:9091/targets
+# Look for "node-exporter" - should be UP
+```
+
+**Expected node-exporter metrics:**
+```
+node_cpu_seconds_total
+node_memory_MemTotal_bytes
+node_disk_reads_completed_total
+node_network_receive_bytes_total
+```
+
+### Problem: Cache Hit Ratio Shows 0% or NaN
+
+**Cause:** No database activity (no reads or writes)
+
+**Solution:**
+```powershell
+# Generate database activity
+docker restart ingest-consumer
+
+# Wait 1-2 minutes for metrics to populate
+```
+
+### Problem: Capacity Planning Shows "Insufficient Data"
+
+**Cause:** Dashboard uses 30-day windows, not enough historical data
+
+**Solution:**
+- Normal for new installations
+- Panels will populate after 7-30 days
+- Use shorter time ranges temporarily:
+  ```promql
+  # Change [30d] to [7d] in queries
+  ```
+
+### Problem: Disk Forecast Shows Negative Days
+
+**Cause:** Database shrinking or deleted data
+
+**Solution:**
+- Normal after VACUUM FULL or data cleanup
+- Forecast assumes linear growth
+- Ignore forecasts after major cleanup operations
+
+---
+
+## ✅ PostgreSQL Dashboard Success Checklist
+
+### PostgreSQL DBA Dashboard
+- [ ] All 6 health gauges show values (not NaN)
+- [ ] Connection usage < 70% (green)
+- [ ] Cache hit ratio > 95% (green)
+- [ ] TPS > 0 when system is active
+- [ ] Lock count is reasonable (< 10)
+- [ ] Transaction graph shows commit activity
+- [ ] Database size is displayed
+- [ ] Table statistics panel populates
+
+### OS Performance Monitor Dashboard
+- [ ] All 4 system health gauges show values
+- [ ] CPU usage < 70% (green)
+- [ ] Memory usage reasonable (40-80%)
+- [ ] Disk usage < 75% (green)
+- [ ] Load average < 2 in idle state
+- [ ] Swap usage = 0
+- [ ] Disk I/O latency < 10ms (green)
+- [ ] Network metrics show data (not NaN)
+- [ ] File descriptors < 80% of max
+
+### Capacity Planning Dashboard
+- [ ] Headroom gauges show percentages
+- [ ] Database size growth graph displays
+- [ ] Growth rate calculated (may be small initially)
+- [ ] Connection trends visible
+- [ ] CPU/Memory peak usage trends show data
+- [ ] Transaction rate trends display
+- [ ] Cache hit ratio trend > 95%
+- [ ] (Optional) Forecast panels show values (requires 7+ days data)
+
+### Integration Checks
+- [ ] PostgreSQL exporter target UP in Prometheus
+- [ ] Node exporter target UP in Prometheus
+- [ ] All pg_* metrics queryable in Prometheus
+- [ ] All node_* metrics queryable in Prometheus
+- [ ] Database activity correlates with app metrics
+- [ ] OS metrics correlate with database load
+- [ ] Dashboards refresh every 5-10 seconds automatically
+
+---
+
+## �🔗 Next Steps
 
 After verification:
 1. Configure alerting rules (see PROMQL-QUERIES.md)
