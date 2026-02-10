@@ -140,9 +140,12 @@ services:
       dockerfile: Gateway.Poller/Dockerfile
     image: telemetry-kitchen-gateway-poller:latest
     container_name: tk-gateway-poller
+    ports:
+      - "9090:9090"
     environment:
       DOTNET_ENVIRONMENT: Development
       Logging__LogLevel__Default: Information
+      ASPNETCORE_URLS: "http://0.0.0.0:9090"
     depends_on:
       postgres:
         condition: service_healthy
@@ -164,6 +167,7 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       Logging__LogLevel__Default: Information
+      ASPNETCORE_URLS: "http://+:9092"
     depends_on:
       postgres:
         condition: service_healthy
@@ -200,7 +204,7 @@ services:
       - "5000:5000"
     environment:
       DOTNET_ENVIRONMENT: Development
-      ASPNETCORE_URLS: "http://+:5000"
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
       ConnectionStrings__PostgreSQL: "Host=postgres;Port=5432;Database=telemetry_kitchen;Username=tk;Password=tk"
       Serilog__WriteTo__1__Args__uri: "http://loki:3100"
     depends_on:

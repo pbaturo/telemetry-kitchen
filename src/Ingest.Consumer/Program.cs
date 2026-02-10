@@ -49,8 +49,8 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
-// Expose Prometheus metrics on port 9091 (for this app's internal metrics)
-var metricsServer = new KestrelMetricServer(port: 9092);
+// Expose Prometheus metrics on port 9092 listening on all interfaces
+var metricsServer = new KestrelMetricServer(hostname: "0.0.0.0", port: 9092);
 metricsServer.Start();
 
 Console.WriteLine("Ingest.Consumer starting...");

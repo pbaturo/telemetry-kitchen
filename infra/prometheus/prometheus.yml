@@ -13,7 +13,7 @@ scrape_configs:
   - job_name: 'gateway-poller'
     scrape_interval: 10s
     static_configs:
-      - targets: ['host.docker.internal:9090']
+      - targets: ['gateway-poller:9090']  # ← FIXED: was host.docker.internal:9090
         labels:
           service: 'gateway-poller'
           component: 'poller'
@@ -26,6 +26,15 @@ scrape_configs:
         labels:
           service: 'web-mvc'
           component: 'web-ui'
+
+  - job_name: 'ingest-consumer'  # ← ADDED: new scrape target
+    scrape_interval: 10s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['ingest-consumer:9092']
+        labels:
+          service: 'ingest-consumer'
+          component: 'consumer'
 
   - job_name: 'postgres'
     scrape_interval: 10s

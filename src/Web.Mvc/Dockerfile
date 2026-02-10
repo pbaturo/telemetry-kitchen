@@ -22,4 +22,4 @@ COPY Web.Mvc/Views ./Views
 
 EXPOSE 5000
 
-ENTRYPOINT ["dotnet", "Web.Mvc.dll"]
+ENTRYPOINT ["dotnet", "Web.Mvc.dll", "--urls", "http://0.0.0.0:5000"]
