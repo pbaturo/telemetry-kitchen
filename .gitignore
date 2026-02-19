@@ -51,7 +51,7 @@ docker-compose.override.yml
 !**/.env.example
 
 # --- Local data volumes (keep infra reproducible) ---
-data/
+/data/
 .volumes/
 **/pgdata/
 **/postgres-data/
