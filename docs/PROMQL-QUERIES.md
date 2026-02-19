@@ -359,6 +359,483 @@ histogram_quantile(0.95, sum(rate(tk_db_write_duration_ms_bucket[5m])) by (le))
 
 ---
 
+## 🌐 Using PromQL Queries in Prometheus Web App
+
+### Accessing Prometheus Web UI
+
+**URL:** http://localhost:9091 (mapped from container port 9090)
+
+The Prometheus web app provides a powerful query interface where you can run any PromQL query, visualize results, and troubleshoot metrics.
+
+---
+
+### Basic Query Examples for Prometheus UI
+
+#### Quick Health Checks
+
+**1. Check if Gateway.Poller is up:**
+```promql
+up{job="gateway-poller"}
+```
+**Result:** `1` = running, `0` = down
+
+**2. Check all services status:**
+```promql
+up
+```
+**Result:** Shows all scraped targets with their status
+
+**3. Count total active services:**
+```promql
+count(up == 1)
+```
+**Result:** Number of healthy services
+
+#### Real-Time Metrics
+
+**4. Current poll rate (last 1 minute):**
+```promql
+rate(tk_polls_total[1m])
+```
+**Result:** Polls per second
+
+**5. Total polls in last hour:**
+```promql
+increase(tk_polls_total[1h])
+```
+**Result:** Total number of polls
+
+**6. Current events in RabbitMQ queue:**
+```promql
+sum(rabbitmq_queue_messages)
+```
+**Result:** Total messages waiting
+
+**7. Web.Mvc current requests per second:**
+```promql
+sum(rate(http_requests_received_total{job="web-mvc"}[1m]))
+```
+**Result:** HTTP requests/sec to the web UI
+
+**8. Database active connections:**
+```promql
+pg_stat_activity_count{datname="telemetry_kitchen",state="active"}
+```
+**Result:** Number of active DB connections
+
+---
+
+### Performance Analysis Queries
+
+#### Latency Investigation
+
+**9. Gateway.Poller HTTP latency percentiles:**
+```promql
+# P50 (Median)
+histogram_quantile(0.50, sum(rate(tk_poll_duration_ms_bucket[5m])) by (le))
+
+# P95
+histogram_quantile(0.95, sum(rate(tk_poll_duration_ms_bucket[5m])) by (le))
+
+# P99
+histogram_quantile(0.99, sum(rate(tk_poll_duration_ms_bucket[5m])) by (le))
+```
+**How to use:** Run each query separately or paste all three and switch between tabs
+
+**10. Compare latency across services:**
+```promql
+# Gateway.Poller
+histogram_quantile(0.95, sum(rate(tk_poll_duration_ms_bucket[5m])) by (le))
+
+# Ingest.Consumer DB writes
+histogram_quantile(0.95, sum(rate(tk_db_write_duration_ms_bucket[5m])) by (le))
+
+# Web.Mvc HTTP responses (in seconds, multiply by 1000 for ms)
+histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="web-mvc"}[5m])) by (le)) * 1000
+```
+
+**11. Find slow queries (database):**
+```promql
+pg_stat_activity_max_tx_duration{datname="telemetry_kitchen",state="active"}
+```
+**Result:** Duration of longest running transaction in seconds
+
+#### Throughput Analysis
+
+**12. Compare poll vs publish vs consume rates:**
+```promql
+# Gateway.Poller polls
+rate(tk_polls_total[5m])
+
+# Events published
+rate(tk_events_published_total[5m])
+
+# Events consumed
+rate(tk_events_consumed_total[5m])
+
+# Events processed
+rate(tk_events_processed_total[5m])
+```
+**Expected:** All values should be approximately equal
+
+**13. Calculate processing efficiency:**
+```promql
+100 * (rate(tk_events_processed_total[5m]) / rate(tk_events_consumed_total[5m]))
+```
+**Expected:** Should be ~100% (near perfect processing)
+
+**14. Database write throughput:**
+```promql
+rate(pg_stat_database_tup_inserted{datname="telemetry_kitchen"}[5m])
+```
+**Result:** Rows inserted per second
+
+---
+
+### Error & Failure Tracking
+
+**15. Gateway.Poller failure rate:**
+```promql
+rate(tk_polls_failed_total[5m])
+```
+**Expected:** Should be 0 or very low
+
+**16. Calculate success percentage:**
+```promql
+100 * (1 - (rate(tk_polls_failed_total[5m]) / rate(tk_polls_total[5m])))
+```
+**Expected:** Should be >95%
+
+**17. Web.Mvc HTTP errors:**
+```promql
+# 4xx errors per second
+sum(rate(http_requests_received_total{job="web-mvc",code=~"4.."}[5m]))
+
+# 5xx errors per second
+sum(rate(http_requests_received_total{job="web-mvc",code=~"5.."}[5m]))
+```
+**Expected:** Very low or zero
+
+**18. HTTP errors by status code:**
+```promql
+sum by (code) (rate(http_requests_received_total{job="web-mvc",code=~"[45].."}[5m]))
+```
+**Result:** Breakdown of errors by HTTP status code
+
+---
+
+### Resource Utilization
+
+**19. Memory usage by service:**
+```promql
+# Gateway.Poller
+process_working_set_bytes{job="gateway-poller"} / 1024 / 1024
+
+# Ingest.Consumer
+process_working_set_bytes{job="ingest-consumer"} / 1024 / 1024
+
+# Web.Mvc
+process_working_set_bytes{job="web-mvc"} / 1024 / 1024
+```
+**Unit:** Megabytes (MB)
+
+**20. CPU usage by service:**
+```promql
+# Gateway.Poller CPU cores
+rate(process_cpu_seconds_total{job="gateway-poller"}[5m])
+
+# All services combined
+sum by (job) (rate(process_cpu_seconds_total{job=~"gateway-poller|ingest-consumer|web-mvc"}[5m]))
+```
+**Result:** Number of CPU cores consumed
+
+**21. Database cache efficiency:**
+```promql
+100 * (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) / 
+       (sum(rate(pg_stat_database_blks_hit{datname="telemetry_kitchen"}[5m])) + 
+        sum(rate(pg_stat_database_blks_read{datname="telemetry_kitchen"}[5m]))))
+```
+**Expected:** Should be >95% (good cache hit ratio)
+
+**22. Database connection pool usage:**
+```promql
+100 * (sum(pg_stat_activity_count{datname="telemetry_kitchen"}) / pg_settings_max_connections)
+```
+**Expected:** Should be <70% for healthy headroom
+
+---
+
+### Sensor Health Monitoring
+
+**23. Find sensors that haven't updated recently:**
+```promql
+(time() - tk_last_success_unixtime) > 600
+```
+**Result:** Shows sensors with no update in last 10 minutes (returns 1 for stale sensors)
+
+**24. Time since last poll for each sensor:**
+```promql
+(time() - tk_last_success_unixtime) / 60
+```
+**Result:** Minutes since last successful poll (includes label for each sensorId)
+
+**25. Count sensors successfully polling:**
+```promql
+count(tk_last_success_unixtime > (time() - 300))
+```
+**Result:** Number of sensors polled in last 5 minutes
+
+---
+
+### Advanced Diagnostic Queries
+
+**26. Consumer lag trend (growing or shrinking):**
+```promql
+deriv(tk_consumer_lag[5m])
+```
+**Result:** Positive = lag growing, Negative = lag shrinking, 0 = stable
+
+**27. Predict when queue will be empty:**
+```promql
+tk_consumer_lag / rate(tk_events_processed_total[5m])
+```
+**Result:** Seconds until queue is cleared (if current processing rate continues)
+
+**28. Database transaction commit ratio:**
+```promql
+rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m]) / 
+(rate(pg_stat_database_xact_commit{datname="telemetry_kitchen"}[5m]) + 
+ rate(pg_stat_database_xact_rollback{datname="telemetry_kitchen"}[5m]))
+```
+**Expected:** Should be ~1.0 (very few rollbacks)
+
+**29. Average poll latency over time:**
+```promql
+rate(tk_poll_duration_ms_sum[5m]) / rate(tk_poll_duration_ms_count[5m])
+```
+**Result:** Mean average latency in milliseconds
+
+**30. RabbitMQ publish/consume ratio:**
+```promql
+sum(rate(rabbitmq_channel_messages_published_total[5m])) / 
+sum(rate(rabbitmq_channel_messages_delivered_total[5m]))
+```
+**Expected:** Should be ~1.0 (balanced)
+
+---
+
+### Time-Series Comparison Queries
+
+**31. Compare current hour to last hour:**
+```promql
+# Current hour poll rate
+rate(tk_polls_total[1h])
+
+# Last hour poll rate (offset by 1 hour)
+rate(tk_polls_total[1h] offset 1h)
+```
+
+**32. Week-over-week comparison:**
+```promql
+# This week's average TPS
+avg_over_time(rate(tk_events_processed_total[5m])[7d:1h])
+
+# Last week (offset 7 days)
+avg_over_time(rate(tk_events_processed_total[5m])[7d:1h] offset 7d)
+```
+
+**33. Day-over-day growth rate:**
+```promql
+# Today's event count
+increase(tk_events_processed_total[1d])
+
+# Yesterday's event count
+increase(tk_events_processed_total[1d] offset 1d)
+
+# Percentage change
+100 * ((increase(tk_events_processed_total[1d]) - increase(tk_events_processed_total[1d] offset 1d)) / 
+        increase(tk_events_processed_total[1d] offset 1d))
+```
+
+---
+
+### Database Size & Growth Queries
+
+**34. Database size in GB:**
+```promql
+pg_database_size_bytes{datname="telemetry_kitchen"} / 1024 / 1024 / 1024
+```
+**Unit:** Gigabytes
+
+**35. Database growth rate (per day):**
+```promql
+deriv(pg_database_size_bytes{datname="telemetry_kitchen"}[7d]) * 86400
+```
+**Result:** Bytes per day
+
+**36. Estimate days until disk full:**
+```promql
+# Assuming 90% threshold on root partition
+((node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"} * 0.9) - 
+ (node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"} - node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"})) / 
+ (deriv(pg_database_size_bytes{datname="telemetry_kitchen"}[7d]) * 86400)
+```
+**Result:** Days remaining (if current growth continues)
+
+---
+
+### Web.Mvc Specific Queries
+
+**37. Top HTTP endpoints by request count:**
+```promql
+sum by (handler) (rate(http_requests_received_total{job="web-mvc"}[5m]))
+```
+**Result:** Requests/sec broken down by route
+
+**38. HTTP request latency by endpoint:**
+```promql
+histogram_quantile(0.95, 
+  sum by (handler, le) (rate(http_request_duration_seconds_bucket{job="web-mvc"}[5m]))
+)
+```
+**Result:** P95 latency per route
+
+**39. Web.Mvc error rate percentage:**
+```promql
+100 * (sum(rate(http_requests_received_total{job="web-mvc",code=~"5.."}[5m])) / 
+       sum(rate(http_requests_received_total{job="web-mvc"}[5m])))
+```
+**Expected:** Should be <1%
+
+**40. HTTP requests in progress:**
+```promql
+sum(http_requests_in_progress{job="web-mvc"})
+```
+**Result:** Current concurrent requests being handled
+
+---
+
+### How to Use These Queries in Prometheus UI
+
+#### Step-by-Step Guide:
+
+**1. Open Prometheus:**
+- Navigate to http://localhost:9091
+- You should see the Prometheus UI with query box at top
+
+**2. Run a Simple Query:**
+- Click in the query box
+- Type: `up`
+- Click **Execute** or press Enter
+- Switch to **Graph** tab to visualize over time
+
+**3. Run Multiple Queries:**
+- Click **Add Query** button
+- Enter second query in new box
+- Both will display on same graph (if numeric)
+
+**4. Adjust Time Range:**
+- Use time picker dropdown (top right)
+- Select: 5m, 15m, 1h, 3h, 6h, 12h, 1d, etc.
+- Or set custom range
+
+**5. Enable Auto-Refresh:**
+- Click the refresh dropdown
+- Select interval: 5s, 10s, 30s, 1m, etc.
+
+**6. Inspect Results:**
+- **Console tab:** View raw metric values
+- **Graph tab:** Visualize as time-series
+- Hover over graph to see exact values
+
+**7. Use Query Autocomplete:**
+- Start typing a metric name
+- Prometheus will suggest completions
+- Press Tab to accept
+
+**8. Save Useful Queries:**
+- Bookmark the URL (query is in URL parameters)
+- Or copy query to text file for later
+
+---
+
+### Example Dashboard-Style Query Session
+
+**Monitoring Gateway.Poller Performance:**
+
+1. **Check if service is running:**
+   ```promql
+   up{job="gateway-poller"}
+   ```
+
+2. **View current throughput:**
+   ```promql
+   rate(tk_polls_total[1m])
+   ```
+
+3. **Check success rate:**
+   ```promql
+   100 * (1 - (rate(tk_polls_failed_total[5m]) / rate(tk_polls_total[5m])))
+   ```
+
+4. **Examine latency:**
+   ```promql
+   histogram_quantile(0.95, sum(rate(tk_poll_duration_ms_bucket[5m])) by (le))
+   ```
+
+5. **Look for stale sensors:**
+   ```promql
+   time() - tk_last_success_unixtime
+   ```
+   (Values >600 indicate sensors not updated in 10+ minutes)
+
+---
+
+### Troubleshooting Common Issues with PromQL
+
+**Query returns "No data":**
+- Check if metric name is spelled correctly
+- Verify service is being scraped: `up{job="service-name"}`
+- Check time range includes data
+- Verify scrape interval in Prometheus config
+
+**"Parse error" message:**
+- Check syntax: balanced parentheses, correct operators
+- Aggregation functions need `by (label)` or `without (label)`
+- Rate/increase need time duration: `rate(metric[5m])`
+
+**Graph shows weird spikes:**
+- May need longer time window: `[5m]` instead of `[1m]`
+- Check if metric is a counter (use `rate()`) or gauge (use as-is)
+- Verify metric hasn't been reset
+
+**Values seem incorrect:**
+- Check units: bytes vs MB, seconds vs milliseconds
+- Remember: counters always increase, use `rate()` for per-sec
+- Histograms need `histogram_quantile()` for percentiles
+
+---
+
+### Quick Reference: Common PromQL Functions
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `rate()` | Per-second rate of counter | `rate(tk_polls_total[5m])` |
+| `increase()` | Total increase in counter | `increase(tk_polls_total[1h])` |
+| `sum()` | Add values together | `sum(tk_consumer_lag)` |
+| `avg()` | Calculate average | `avg(process_cpu_seconds_total)` |
+| `max()` | Find maximum value | `max(tk_poll_duration_ms)` |
+| `min()` | Find minimum value | `min(node_memory_MemAvailable_bytes)` |
+| `count()` | Count number of series | `count(up == 1)` |
+| `histogram_quantile()` | Calculate percentile | `histogram_quantile(0.95, ...)` |
+| `time()` | Current Unix timestamp | `time() - tk_last_success_unixtime` |
+| `absent()` | Check if metric doesn't exist | `absent(up{job="service"})` |
+| `by (label)` | Group aggregation by label | `sum by (job) (up)` |
+| `without (label)` | Aggregate excluding label | `sum without (instance) (up)` |
+| `offset` | Time-shift query | `rate(metric[5m] offset 1h)` |
+
+---
+
 ## 🗄️ PostgreSQL Database Metrics
 
 ### Connection Health
