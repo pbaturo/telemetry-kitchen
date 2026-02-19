@@ -906,8 +906,8 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
       "description": "Logs from Gateway.Poller service",
       "gridPos": {
@@ -918,11 +918,14 @@
       },
       "id": 40,
       "options": {
-        "prettifyLogMessage": true,
-        "showLabels": true,
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
         "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": true
+        "wrapLogMessage": false
       },
       "targets": [
         {
