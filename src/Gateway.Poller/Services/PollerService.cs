@@ -21,6 +21,7 @@ public class PollerService : BackgroundService
     private readonly MetricsCollector _metrics;
     private readonly IRabbitMqPublisher _publisher;
     private readonly List<StationConfig> _stations;
+    private const int MaxHttpAttempts = 3;
 
     public PollerService(
         IHttpClientFactory httpClientFactory,
@@ -93,11 +94,11 @@ public class PollerService : BackgroundService
         {
             _metrics.PollsTotal.Inc();
 
-            var response = await httpClient.GetAsync(station.Url, cancellationToken);
-            httpStatus = (int)response.StatusCode;
-            response.EnsureSuccessStatusCode();
-
-            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var responseBody = await FetchResponseBodyWithRetriesAsync(
+                httpClient,
+                station,
+                cancellationToken,
+                status => httpStatus = status);
             var payloadBytes = Encoding.UTF8.GetByteCount(responseBody);
 
             sw.Stop();
@@ -190,5 +191,53 @@ public class PollerService : BackgroundService
     {
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{sensorId}|{observedAt:O}|{payloadBytes}|{payload}"));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private async Task<string> FetchResponseBodyWithRetriesAsync(
+        HttpClient httpClient,
+        StationConfig station,
+        CancellationToken cancellationToken,
+        Action<int> setStatusCode)
+    {
+        for (var attempt = 1; attempt <= MaxHttpAttempts; attempt++)
+        {
+            using var response = await httpClient.GetAsync(station.Url, cancellationToken);
+
+            var statusCode = (int)response.StatusCode;
+            setStatusCode(statusCode);
+
+            if (statusCode == 429)
+            {
+                _metrics.PollsFailedHttp429.Inc();
+            }
+            else if (statusCode >= 500)
+            {
+                _metrics.PollsFailedHttp5xx.Inc();
+            }
+
+            var shouldRetry = (statusCode == 429 || statusCode >= 500) && attempt < MaxHttpAttempts;
+            if (!shouldRetry)
+            {
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync(cancellationToken);
+            }
+
+            _metrics.PollRetries.Inc();
+            var retryDelay = CalculateRetryDelayWithJitter(attempt);
+            _logger.LogDebug(
+                "Transient HTTP failure for {SensorId} (status={StatusCode}, attempt={Attempt}/{MaxAttempts}); retrying in {DelayMs}ms",
+                station.SensorId, statusCode, attempt, MaxHttpAttempts, (int)retryDelay.TotalMilliseconds);
+            await Task.Delay(retryDelay, cancellationToken);
+        }
+
+        // Defensive fallback: loop should always return or throw before this.
+        throw new InvalidOperationException($"Failed to fetch response for {station.SensorId}");
+    }
+
+    private static TimeSpan CalculateRetryDelayWithJitter(int attempt)
+    {
+        var exponentialMs = Math.Min(500 * (int)Math.Pow(2, attempt - 1), 5000);
+        var jitterMs = Random.Shared.Next(100, 500);
+        return TimeSpan.FromMilliseconds(exponentialMs + jitterMs);
     }
 }

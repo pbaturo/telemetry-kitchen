@@ -10,6 +10,15 @@ public class MetricsCollector
     public Counter PollsFailed { get; } = Prometheus.Metrics.CreateCounter(
         "tk_polls_failed_total", "Total number of failed station polls");
 
+    public Counter PollsFailedHttp5xx { get; } = Prometheus.Metrics.CreateCounter(
+        "tk_polls_failed_http_5xx_total", "Total number of transient upstream 5xx responses");
+
+    public Counter PollsFailedHttp429 { get; } = Prometheus.Metrics.CreateCounter(
+        "tk_polls_failed_http_429_total", "Total number of upstream 429 responses");
+
+    public Counter PollRetries { get; } = Prometheus.Metrics.CreateCounter(
+        "tk_polls_retries_total", "Total number of HTTP retry attempts for transient failures");
+
     public Counter EventsPublished { get; } = Prometheus.Metrics.CreateCounter(
         "tk_events_published_total", "Total number of events published to RabbitMQ");
 
