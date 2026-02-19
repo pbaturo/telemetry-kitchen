@@ -167,7 +167,6 @@ services:
     environment:
       DOTNET_ENVIRONMENT: Development
       Logging__LogLevel__Default: Information
-      ASPNETCORE_URLS: "http://+:9092"
     depends_on:
       postgres:
         condition: service_healthy
