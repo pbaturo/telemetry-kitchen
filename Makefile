@@ -19,7 +19,6 @@ help: ## Show available targets
 	@echo "  dotnet-build       Build solution";
 	@echo "  dotnet-publish     Publish solution to artifacts/publish";
 	@echo "  dotnet-clean       Clean solution";
-	@echo "  clean              Clean .NET build outputs";
 	@echo "  docker-publish     Publish .NET + build Docker images";
 	@echo "  compose-rebuild    Rebuild images and restart containers"
 
@@ -46,8 +45,6 @@ dotnet-publish: ## Publish solution to artifacts/publish
 
 dotnet-clean: ## Clean solution
 	dotnet clean telemetry-kitchen.sln -c $(CONFIGURATION)
-
-clean: dotnet-clean ## Clean .NET build outputs
 
 # Build local images after publishing .NET artifacts.
 docker-publish: dotnet-publish compose-build ## Publish .NET + build Docker images
